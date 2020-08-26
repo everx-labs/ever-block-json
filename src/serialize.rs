@@ -17,7 +17,7 @@
 use ton_block::*;
 use ton_types::{
     Result,
-    {Cell, SliceData},
+    {AccountId, Cell, SliceData},
     cells_serialization::{serialize_toc},
     dictionary::HashmapType,
     types::UInt256,
@@ -31,6 +31,8 @@ const VERSION: u32 = 3;
 // Version changes
 // 2 - fix var account addresses tag in block (`8_` postfix)
 // 3 - `balance_delta` added to transaction
+
+const STD_ACCOUNT_ID_LENGTH: usize = 256;
 
 #[derive(Clone, Copy)]
 pub enum SerializationMode {
@@ -50,6 +52,7 @@ impl SerializationMode {
     pub fn is_q_server(&self) -> bool {
         match self {
             SerializationMode::QServer => true,
+            SerializationMode::Debug => true,
             _ => false
         }
     }
@@ -179,6 +182,16 @@ fn bigint_to_string(value: &BigInt, mode: SerializationMode) -> String {
 
 fn shard_to_string(value: u64) -> String {
     format!("{:016x}", value)
+}
+
+fn construct_address(workchain_id: i32, account_id: AccountId) -> Result<MsgAddressInt> {
+    if workchain_id <= 127 && workchain_id >= -128 
+        && account_id.remaining_bits() == STD_ACCOUNT_ID_LENGTH
+    {
+        MsgAddressInt::with_standart(None, workchain_id as i8, account_id)
+    } else {
+        MsgAddressInt::with_variant(None, workchain_id, account_id)
+    }
 }
 
 fn serialize_cell(
@@ -539,15 +552,15 @@ fn serialize_out_msg(msg: &OutMsg, mode: SerializationMode) -> Result<Value> {
             map.insert("import_block_lt".to_string(), u64_to_string(&msg.import_block_lt(), mode).into());
             (5, "dequeue")
         }
-        OutMsg::TransitRequired(msg) => {
+        OutMsg::TransitRequeued(msg) => {
             map.insert("out_msg".to_string(), serialize_envelop_msg(&msg.read_out_message()?, mode).into());
             map.insert("imported".to_string(), serialize_in_msg(&msg.read_imported()?, mode)?);
-            (6, "transitRequired")
+            (6, "transitRequeued")
         }
         OutMsg::DequeueShort(msg) => {
             serialize_id(&mut map, "msg_env_hash", Some(&msg.msg_env_hash));
             map.insert("next_workchain".to_string(), msg.next_workchain.into());
-            map.insert("next_addr_pfx".to_string(), u64_to_string(&msg.next_addr_pfx, mode).into());
+            map.insert("next_addr_pfx".to_string(), shard_to_string(msg.next_addr_pfx).into());
             map.insert("import_block_lt".to_string(), u64_to_string(&msg.import_block_lt, mode).into());
             (7, "dequeueShort")
         }
@@ -1206,11 +1219,7 @@ pub fn db_serialize_block_ex(id_str: &'static str, set: &BlockSerializationSet, 
     let mut account_blocks = Vec::new();
     extra.read_account_blocks()?.iterate_objects(|account_block| {
         let workchain = block_info.shard().workchain_id();
-        let address = if workchain <= 127 && workchain >= -128  {
-            MsgAddressInt::with_standart(None, workchain as i8, account_block.account_addr())?
-        } else {
-            MsgAddressInt::with_variant(None, workchain, account_block.account_addr())?
-        };
+        let address = construct_address(workchain, account_block.account_addr())?;
         let mut map = Map::new();
         serialize_field(&mut map, "account_addr", address.to_string());
         let mut transactions = Vec::new();
@@ -1426,11 +1435,7 @@ pub fn db_serialize_transaction_ex(id_str: &'static str, set: &TransactionSerial
         Ok(true)
     })?;
     serialize_field(&mut map, "out_msgs", out_ids);
-    let account_addr = if set.workchain_id <= 127 && set.workchain_id >= -128  {
-        MsgAddressInt::with_standart(None, set.workchain_id as i8, set.transaction.account_addr.clone())?
-    } else {
-        MsgAddressInt::with_variant(None, set.workchain_id, set.transaction.account_addr.clone())?
-    };
+    let account_addr = construct_address(set.workchain_id, set.transaction.account_addr.clone())?;
     serialize_field(&mut map, "account_addr", account_addr.to_string());
     serialize_field(&mut map, "workchain_id", set.workchain_id);
     serialize_cc(&mut map, "total_fees", &set.transaction.total_fees, mode)?;
@@ -1514,9 +1519,33 @@ pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationS
                 _ => {}
             };
         }
-        None => unimplemented!("Attempt to call serde::Serialize::serialize for AccountNone")
+        None => ton_types::fail!("Attempt to call serde::Serialize::serialize for AccountNone")
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
+    Ok(map)
+}
+
+pub struct DeletedAccountSerializationSet {
+    pub account_id: AccountId,
+    pub workchain_id: i32
+}
+
+pub fn db_serialize_deleted_account(
+    id_str: &'static str, set: &DeletedAccountSerializationSet
+) -> Result<Map<String, Value>> {
+    db_serialize_deleted_account_ex(id_str, set, SerializationMode::Standart)
+}
+
+pub fn db_serialize_deleted_account_ex(
+    id_str: &'static str, set: &DeletedAccountSerializationSet, mode: SerializationMode
+) -> Result<Map<String, Value>> {
+    let mut map = Map::new();
+    serialize_field(&mut map, "json_version", VERSION);
+    let address = construct_address(set.workchain_id, set.account_id.clone())?;
+    serialize_field(&mut map, id_str, address.to_string());
+    serialize_field(&mut map, "workchain_id", set.workchain_id);
+    serialize_account_status(&mut map, "acc_type", &AccountStatus::AccStateNonexist, mode);
+
     Ok(map)
 }
 
