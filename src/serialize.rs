@@ -1111,7 +1111,7 @@ pub struct BlockSerializationSet {
 }
 
 pub fn debug_block(block: Block) -> Result<String> {
-    let root_cell = Cell::from(block.write_to_new_cell()?);
+    let root_cell = block.serialize()?;
     let set = BlockSerializationSet {
         block,
         id: root_cell.repr_hash(),
@@ -1297,8 +1297,32 @@ pub struct TransactionSerializationSet {
     pub proof: Option<Vec<u8>>,
 }
 
+pub struct TransactionSerializationSetEx<'a> {
+    pub transaction: &'a Transaction,
+    pub id: &'a TransactionId,
+    pub status: TransactionProcessingStatus,
+    pub block_id: Option<&'a BlockId>,
+    pub workchain_id: Option<i32>,
+    pub boc: &'a [u8],
+    pub proof: Option<&'a [u8]>,
+}
+
+impl<'a> From<&'a TransactionSerializationSet> for TransactionSerializationSetEx<'a> {
+    fn from(set: &'a TransactionSerializationSet) -> Self {
+        TransactionSerializationSetEx {
+            transaction: &set.transaction,
+            id: &set.id,
+            status: set.status,
+            block_id: set.block_id.as_ref(),
+            workchain_id: Some(set.workchain_id),
+            boc: &set.boc,
+            proof: set.proof.as_ref().map(|vec| vec.as_slice())
+        }
+    }
+}
+
 pub fn debug_transaction(transaction: Transaction) -> Result<String> {
-    let root_cell = Cell::from(transaction.write_to_new_cell()?);
+    let root_cell = transaction.serialize()?;
     let set = TransactionSerializationSet {
         transaction,
         id: root_cell.repr_hash(),
@@ -1312,15 +1336,23 @@ pub fn debug_transaction(transaction: Transaction) -> Result<String> {
     Ok(format!("{:#}", serde_json::json!(map)))
 }
 
-pub fn db_serialize_transaction(id_str: &'static str, set: &TransactionSerializationSet) -> Result<Map<String, Value>> {
+pub fn db_serialize_transaction<'a>(
+    id_str: &'static str,
+    set: impl Into<TransactionSerializationSetEx<'a>>
+) -> Result<Map<String, Value>> {
     db_serialize_transaction_ex(id_str, set, SerializationMode::Standart)
 }
 
-pub fn db_serialize_transaction_ex(id_str: &'static str, set: &TransactionSerializationSet, mode: SerializationMode) -> Result<Map<String, Value>> {
+pub fn db_serialize_transaction_ex<'a>(
+    id_str: &'static str,
+    set: impl Into<TransactionSerializationSetEx<'a>>,
+    mode: SerializationMode
+) -> Result<Map<String, Value>> {
+    let set: TransactionSerializationSetEx = set.into();
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
     serialize_id(&mut map, id_str, Some(&set.id));
-    serialize_id(&mut map, "block_id", set.block_id.as_ref());
+    serialize_id(&mut map, "block_id", set.block_id);
     if let Some(proof) = &set.proof {
         serialize_field(&mut map, "proof", base64::encode(&proof));
     }
@@ -1435,9 +1467,13 @@ pub fn db_serialize_transaction_ex(id_str: &'static str, set: &TransactionSerial
         Ok(true)
     })?;
     serialize_field(&mut map, "out_msgs", out_ids);
-    let account_addr = construct_address(set.workchain_id, set.transaction.account_addr.clone())?;
-    serialize_field(&mut map, "account_addr", account_addr.to_string());
-    serialize_field(&mut map, "workchain_id", set.workchain_id);
+    if let Some(workchain_id) = set.workchain_id {
+        let account_addr = construct_address(workchain_id, set.transaction.account_addr.clone())?;
+        serialize_field(&mut map, "account_addr", account_addr.to_string());
+        serialize_field(&mut map, "workchain_id", workchain_id);
+    } else {
+        serialize_field(&mut map, "account_id", set.transaction.account_addr.to_hex_string());
+    }
     serialize_cc(&mut map, "total_fees", &set.transaction.total_fees, mode)?;
     balance_delta.sub(&SignedCurrencyCollection::from_cc(&set.transaction.total_fees)?);
     serialize_scc(&mut map, "balance_delta", &balance_delta, mode);
@@ -1561,7 +1597,7 @@ pub struct MessageSerializationSet {
 }
 
 pub fn debug_message(message: Message) -> Result<String> {
-    let root_cell = Cell::from(message.write_to_new_cell()?);
+    let root_cell = message.serialize()?;
     let set = MessageSerializationSet {
         message,
         id: root_cell.repr_hash(),
@@ -1777,5 +1813,17 @@ pub fn db_serialize_shard_state_ex(id_str: &'static str, set: &ShardStateSeriali
     serialize_libraries(&mut map, "libraries", set.state.libraries())?;
     serialize_out_msg_queue_info(&mut map, "out_msg_queue_info", &set.state.read_out_msg_queue_info()?, mode)?;
     Ok(map)
+}
+
+pub fn debug_state(state: ShardStateUnsplit) -> Result<String> {
+    let set = ShardStateSerializationSet {
+        block_id: None,
+        workchain_id: state.shard().workchain_id(),
+        id: format!("{}", state.shard()),
+        state,
+        boc: vec![],
+    };
+    let map = db_serialize_shard_state_ex("id", &set, SerializationMode::Debug)?;
+    Ok(format!("{:#}", serde_json::json!(map)))
 }
 
