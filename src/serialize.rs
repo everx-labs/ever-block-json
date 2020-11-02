@@ -1462,6 +1462,7 @@ pub fn db_serialize_transaction_ex<'a>(
     serialize_account_status(&mut map, "orig_status", &set.transaction.orig_status, mode);
     serialize_account_status(&mut map, "end_status", &set.transaction.end_status, mode);
     let mut balance_delta = SignedCurrencyCollection::new();
+    let mut address_from_message = None;
     if let Some(msg) = &set.transaction.in_msg {
         serialize_id(&mut map, "in_msg", Some(&msg.hash()));
 
@@ -1474,6 +1475,7 @@ pub fn db_serialize_transaction_ex<'a>(
         if let Some((ihr_fee, _)) = get_msg_fees(&msg) {
             balance_delta.grams += ihr_fee.value();
         }
+        address_from_message = msg.dst();
     }
     let mut out_ids = vec![];
     set.transaction.out_msgs.iterate_slices(|slice| {
@@ -1488,6 +1490,9 @@ pub fn db_serialize_transaction_ex<'a>(
                 balance_delta.grams -= ihr_fee.value();
                 balance_delta.grams -= fwd_fee.value();
             }
+            if address_from_message.is_none() {
+                address_from_message = msg.src();
+            }
         }
         Ok(true)
     })?;
@@ -1496,6 +1501,9 @@ pub fn db_serialize_transaction_ex<'a>(
         let account_addr = construct_address(workchain_id, set.transaction.account_addr.clone())?;
         serialize_field(&mut map, "account_addr", account_addr.to_string());
         serialize_field(&mut map, "workchain_id", workchain_id);
+    } else if let Some(address) = address_from_message {
+        serialize_field(&mut map, "account_addr", address.to_string());
+        serialize_field(&mut map, "workchain_id", address.get_workchain_id());
     } else {
         serialize_field(&mut map, "account_id", set.transaction.account_addr.to_hex_string());
     }
