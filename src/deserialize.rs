@@ -14,6 +14,7 @@
  * under the License.
  */
 
+use num::BigInt;
 use serde_json::{Map, Value};
 use std::str::FromStr;
 use ton_types::{deserialize_tree_of_cells, error, fail, Result, UInt256};
@@ -23,18 +24,20 @@ use ton_block::{
     BlockCreateFees,
     BlockLimits,
     CatchainConfig,
-    ConfigParamEnum, ConfigParam0, ConfigParam1, ConfigParam2, ConfigParam8, ConfigParam9,
-    ConfigParam10, ConfigParam11, ConfigParam12,
-    ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
+    ConfigParamEnum, ConfigParam0, ConfigParam1, ConfigParam2,
+    ConfigParam7, ConfigParam8, ConfigParam9,
+    ConfigParam10, ConfigParam11, ConfigParam12, ConfigParam13, ConfigParam14,
+    ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
     ConfigParam29, ConfigParam31, ConfigParam34,
     ConfigParam18Map,
     ConfigProposalSetup,
     ConsensusConfig,
     CurrencyCollection,
+    ExtraCurrencyCollection,
+    FundamentalSmcAddresses,
     GasLimitsPrices,
     GlobalVersion,
     Grams,
-    FundamentalSmcAddresses,
     LibDescr,
     MandatoryParams,
     McStateExtra,
@@ -58,10 +61,10 @@ trait ParseJson {
 
 impl ParseJson for Value {
     fn as_uint256(&self) -> Result<UInt256> {
-        UInt256::from_str(self.as_str().ok_or(error!("field is not str"))?)
+        UInt256::from_str(self.as_str().ok_or_else(|| error!("field is not str"))?)
     }
     fn as_base64(&self) -> Result<Vec<u8>> {
-        Ok(base64::decode(self.as_str().ok_or(error!("field is not str"))?)?)
+        Ok(base64::decode(self.as_str().ok_or_else(|| error!("field is not str"))?)?)
     }
     fn as_int(&self) -> Result<i32> {
         match self.as_i64() {
@@ -232,12 +235,23 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
     let minter_addr = config.get_uint256("p2")?;
     set_config(&config, &mut extra, ConfigParamEnum::ConfigParam2(ConfigParam2 {minter_addr} ))?;
 
+    let p7 = config.get_vec("p7")?;
+    let mut to_mint = ExtraCurrencyCollection::default();
+    p7.iter().try_for_each(|currency| {
+        let currency = PathMap::cont(&config, "p7", currency)?;
+        to_mint.set(
+            &(currency.get_num("currency")? as u32),
+            &BigInt::from_str(currency.get_str("value")?)?.into()
+        )
+    })?;
+    set_config(&config, &mut extra, ConfigParamEnum::ConfigParam7(ConfigParam7 {to_mint} ))?;
+
     let p8 = config.get_obj("p8")?;
     let version = p8.get_num("version")? as u32;
     let capabilities = p8.get_num("capabilities")? as u64;
     let global_version = GlobalVersion {version, capabilities};
     set_config(&config, &mut extra, ConfigParamEnum::ConfigParam8(ConfigParam8 {global_version} ))?;
-    
+
     let p9 = config.get_vec("p9")?;
     let mut mandatory_params = MandatoryParams::default();
     p9.iter().try_for_each(|n| mandatory_params.set(&n.as_uint()?, &()))?;
@@ -308,6 +322,10 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
     })?;
     set_config(&config, &mut extra, ConfigParamEnum::ConfigParam12(ConfigParam12 {workchains}))?;
 
+    let p13 = config.get_obj("p13")?;
+    let cell = deserialize_tree_of_cells(&mut std::io::Cursor::new(p13.get_base64("boc")?))?;
+    set_config(&config, &mut extra, ConfigParamEnum::ConfigParam13(ConfigParam13 {cell}))?;
+
     let p14 = config.get_obj("p14")?;
     let mut block_create_fees = BlockCreateFees::default();
     block_create_fees.masterchain_block_fee = Grams::from(p14.get_num("masterchain_block_fee")? as u64);
@@ -343,7 +361,7 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
     let p18 = config.get_vec("p18")?;
     let mut map = ConfigParam18Map::default();
     let mut index = 0u32;
-    p18.iter().try_for_each(|p| {
+    p18.iter().try_for_each::<_, Result<_>>(|p| {
         let p = PathMap::cont(&config, "p18", p)?;
         let p = StoragePrices {
             utime_since:      p.get_num("utime_since")? as u32,
@@ -352,8 +370,9 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
             mc_bit_price_ps:  p.get_num("mc_bit_price_ps")? as u64,
             mc_cell_price_ps: p.get_num("mc_cell_price_ps")? as u64,
         };
+        map.set(&index, &p)?;
         index += 1;
-        map.set(&index, &p)
+        Ok(())
     })?;
     set_config(&config, &mut extra, ConfigParamEnum::ConfigParam18(ConfigParam18 { map }))?;
 
@@ -425,10 +444,7 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
 
     let p31 = config.get_vec("p31")?;
     let mut fundamental_smc_addr = FundamentalSmcAddresses::default();
-    p31.iter().try_for_each(|n| {
-        fundamental_smc_addr.set(&n.as_uint256()?, &())
-            
-    })?;
+    p31.iter().try_for_each(|n| fundamental_smc_addr.set(&n.as_uint256()?, &()))?;
     set_config(&config, &mut extra, ConfigParamEnum::ConfigParam31(ConfigParam31 {fundamental_smc_addr} ))?;
 
     let p34 = config.get_obj("p34")?;
