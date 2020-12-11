@@ -874,6 +874,10 @@ fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Serial
         ConfigParamEnum::ConfigParam12(ref c) => {
             return Ok(Some(serialize_workchains(&c.workchains)?)); 
         },
+        ConfigParamEnum::ConfigParam13(ref c) => {
+            let boc = serialize_toc(&c.cell)?;
+            serialize_field(&mut map, "boc", base64::encode(&boc));
+        },
         ConfigParamEnum::ConfigParam14(ref c) => {
             serialize_grams(&mut map, "masterchain_block_fee", 
                 &c.block_create_fees.masterchain_block_fee, mode);
@@ -960,7 +964,7 @@ fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Serial
         ConfigParamEnum::ConfigParam39(ref c) => {
             return Ok(Some(serialize_validator_signed_temp_keys(&c.validator_keys)?));
         },
-        ConfigParamEnum::ConfigParamAny(_, _) => {
+        _ => {
             return Ok(None)
         },
     }
@@ -1515,7 +1519,7 @@ pub fn db_serialize_transaction_ex<'a>(
     }
     let mut out_ids = vec![];
     set.transaction.out_msgs.iterate_slices(|slice| {
-        if let Ok(cell) = slice.reference(0) {
+        if let Some(cell) = slice.reference_opt(0) {
             out_ids.push(cell.repr_hash().to_hex_string());
 
             let msg = Message::construct_from(&mut cell.into())?;
