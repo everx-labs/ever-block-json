@@ -1388,16 +1388,16 @@ impl<'a> From<&'a TransactionSerializationSet> for TransactionSerializationSetEx
 
 pub fn debug_transaction(transaction: Transaction) -> Result<String> {
     let root_cell = transaction.serialize()?;
-    let set = TransactionSerializationSet {
-        transaction,
-        id: root_cell.repr_hash(),
+    let set = TransactionSerializationSetEx {
+        transaction: &transaction,
+        id: &root_cell.repr_hash(),
         status: ton_block::TransactionProcessingStatus::Finalized,
         block_id: None,
-        workchain_id: -1,
-        boc: Vec::new(),
+        workchain_id: None,
+        boc: &[],
         proof: None,
     };
-    let map = db_serialize_transaction_ex("id", &set, SerializationMode::Debug)?;
+    let map = db_serialize_transaction_ex("id", set, SerializationMode::Debug)?;
     Ok(format!("{:#}", serde_json::json!(map)))
 }
 
