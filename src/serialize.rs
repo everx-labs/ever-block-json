@@ -1186,6 +1186,41 @@ pub fn debug_block(block: Block) -> Result<String> {
     Ok(format!("{:#}", serde_json::json!(map)))
 }
 
+pub fn debug_block_full(block: &Block) -> Result<String> {
+    let root_cell = block.serialize()?;
+    let set = BlockSerializationSet {
+        block: block.clone(),
+        id: root_cell.repr_hash(),
+        status: ton_block::BlockProcessingStatus::Finalized,
+        boc: Vec::new(),
+    };
+    let map = db_serialize_block_ex("id", &set, SerializationMode::Debug)?;
+
+    let mut text = format!("Block: {:#}\n", serde_json::json!(map));
+    let extra = block.read_extra()?;
+    let in_msgs = extra.read_in_msg_descr()?;
+    in_msgs.iterate_objects(|in_msg| {
+        let msg = in_msg.read_message()?;
+        text += &format!("InMsg: {}\n", debug_message(msg)?);
+        Ok(true)
+    })?;
+    let out_msgs = extra.read_out_msg_descr()?;
+    out_msgs.iterate_objects(|out_msg| {
+        if let Some(msg) = out_msg.read_message()? {
+            text += &format!("OutMsg: {}\n", debug_message(msg)?);
+        }
+        Ok(true)
+    })?;
+    let acc_blocks = extra.read_account_blocks()?;
+    acc_blocks.iterate_objects(|block| {
+        block.transactions().iterate_objects(|InRefValue(tr)| {
+            text += &format!("Transaction: {}\n", debug_transaction(tr)?);
+            Ok(true)
+        })
+    })?;
+    Ok(text)
+}
+
 pub fn db_serialize_block(id_str: &'static str, set: &BlockSerializationSet) -> Result<Map<String, Value>> {
     db_serialize_block_ex(id_str, set, SerializationMode::Standart)
 }
@@ -1888,7 +1923,20 @@ pub fn db_serialize_shard_state_ex(id_str: &'static str, set: &ShardStateSeriali
     Ok(map)
 }
 
-pub fn debug_state(state: ShardStateUnsplit) -> Result<String> {
+pub fn debug_state(mut state: ShardStateUnsplit) -> Result<String> {
+    state.write_accounts(&Default::default())?;
+    let set = ShardStateSerializationSet {
+        block_id: None,
+        workchain_id: state.shard().workchain_id(),
+        id: format!("{}", state.shard()),
+        state,
+        boc: vec![],
+    };
+    let map = db_serialize_shard_state_ex("id", &set, SerializationMode::Debug)?;
+    Ok(format!("{:#}", serde_json::json!(map)))
+}
+
+pub fn debug_state_full(state: ShardStateUnsplit) -> Result<String> {
     let set = ShardStateSerializationSet {
         block_id: None,
         workchain_id: state.shard().workchain_id(),

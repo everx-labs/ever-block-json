@@ -322,9 +322,10 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
     })?;
     set_config(&config, &mut extra, ConfigParamEnum::ConfigParam12(ConfigParam12 {workchains}))?;
 
-    let p13 = config.get_obj("p13")?;
-    let cell = deserialize_tree_of_cells(&mut std::io::Cursor::new(p13.get_base64("boc")?))?;
-    set_config(&config, &mut extra, ConfigParamEnum::ConfigParam13(ConfigParam13 {cell}))?;
+    if let Ok(p13) = config.get_obj("p13") {
+        let cell = deserialize_tree_of_cells(&mut std::io::Cursor::new(p13.get_base64("boc")?))?;
+        set_config(&config, &mut extra, ConfigParamEnum::ConfigParam13(ConfigParam13 {cell}))?;
+    }
 
     let p14 = config.get_obj("p14")?;
     let mut block_create_fees = BlockCreateFees::default();
