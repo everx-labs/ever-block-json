@@ -1072,7 +1072,7 @@ fn serialize_shard_accounts(map: &mut Map<String, Value>, id_str: &str, shard_ac
     shard_accounts.iterate_objects(&mut |ref mut value: ShardAccount| -> Result<bool> {
         let account_set = AccountSerializationSet {
             account: value.read_account()?,
-            boc: serialize_toc(value.account_cell())?,
+            boc: serialize_toc(&value.account_cell())?,
             proof: None,
         };
         let mut account = db_serialize_account_ex("id", &account_set, mode)?;
