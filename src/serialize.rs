@@ -27,11 +27,12 @@ use num_traits::sign::Signed;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
-const VERSION: u32 = 4;
+const VERSION: u32 = 5;
 // Version changes
 // 2 - fix var account addresses tag in block (`8_` postfix)
 // 3 - `balance_delta` added to transaction
 // 4 - decimal number fields companions
+// 5 - storage stat in account
 
 const STD_ACCOUNT_ID_LENGTH: usize = 256;
 
@@ -1642,6 +1643,9 @@ pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationS
             }
             serialize_field(&mut map, "boc", base64::encode(&set.boc));
             serialize_field(&mut map, "last_paid", stuff.storage_stat.last_paid);
+            serialize_u64(&mut map, "bits", &stuff.storage_stat.used.bits.0, mode);
+            serialize_u64(&mut map, "cells", &stuff.storage_stat.used.cells.0, mode);
+            serialize_u64(&mut map, "public_cells", &stuff.storage_stat.used.public_cells.0, mode);
             stuff.storage_stat.due_payment.as_ref().map(|grams|
                 serialize_grams(&mut map, "due_payment", &grams, mode));
                 serialize_lt(&mut map, "last_trans_lt", &stuff.storage.last_trans_lt, mode);
