@@ -413,6 +413,7 @@ pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
     let p28 = config.get_obj("p28")?;
     let p28 = CatchainConfig {
         shuffle_mc_validators:     p28.get_bool("shuffle_mc_validators")?,
+        isolate_mc_validators:     p28.get_bool("isolate_mc_validators").unwrap_or_default(),
         mc_catchain_lifetime:      p28.get_num("mc_catchain_lifetime")? as u32,
         shard_catchain_lifetime:   p28.get_num("shard_catchain_lifetime")? as u32,
         shard_validators_lifetime: p28.get_num("shard_validators_lifetime")? as u32,

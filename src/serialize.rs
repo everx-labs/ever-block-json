@@ -931,6 +931,7 @@ fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Serial
         },
         ConfigParamEnum::ConfigParam28(ref c) => {
             serialize_field(&mut map, "shuffle_mc_validators", c.shuffle_mc_validators);
+            serialize_field(&mut map, "isolate_mc_validators", c.isolate_mc_validators);
             serialize_field(&mut map, "mc_catchain_lifetime", c.mc_catchain_lifetime);
             serialize_field(&mut map, "shard_catchain_lifetime", c.shard_catchain_lifetime);
             serialize_field(&mut map, "shard_validators_lifetime", c.shard_validators_lifetime);
