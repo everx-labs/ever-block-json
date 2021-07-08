@@ -267,7 +267,7 @@ fn serialize_slice(
     write_hash: bool,
 ) -> Result<()> {
     if let Some(slice) = slice {
-        let cell = slice.into_cell();
+        let cell = slice.clone().into_cell();
         let bytes = serialize_toc(&cell)?;
         serialize_field(map, id_str, base64::encode(&bytes));
         if write_hash {
