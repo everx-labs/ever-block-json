@@ -267,7 +267,7 @@ fn serialize_slice(
     write_hash: bool,
 ) -> Result<()> {
     if let Some(slice) = slice {
-        let cell = slice.into_cell();
+        let cell = slice.clone().into_cell();
         let bytes = serialize_toc(&cell)?;
         serialize_field(map, id_str, base64::encode(&bytes));
         if write_hash {
@@ -1644,40 +1644,45 @@ pub fn db_serialize_account(id_str: &'static str, set: &AccountSerializationSet)
 pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationSet, mode: SerializationMode) -> Result<Map<String, Value>> {
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
-    match set.account.stuff() {
-        Some(stuff) => {
-            serialize_field(&mut map, id_str, stuff.addr().to_string());
-            serialize_field(&mut map, "workchain_id", stuff.addr().get_workchain_id());
-            if let Some(proof) = &set.proof {
-                serialize_field(&mut map, "proof", base64::encode(&proof));
-            }
-            serialize_field(&mut map, "boc", base64::encode(&set.boc));
-            serialize_field(&mut map, "last_paid", stuff.storage_stat().last_paid());
-            serialize_u64(&mut map, "bits", &stuff.storage_stat().used().bits(), mode);
-            serialize_u64(&mut map, "cells", &stuff.storage_stat().used().cells(), mode);
-            serialize_u64(&mut map, "public_cells", &stuff.storage_stat().used().public_cells(), mode);
-            stuff.storage_stat().due_payment().map(|grams|
-                serialize_grams(&mut map, "due_payment", &grams, mode));
-            serialize_lt(&mut map, "last_trans_lt", &stuff.storage().last_trans_lt(), mode);
-            serialize_cc(&mut map, "balance", &stuff.storage().balance(), mode)?;
-            match &stuff.storage().state() {
-                AccountState::AccountActive(state) => {
-                    state.split_depth.as_ref().map(|split_depth| serialize_field(&mut map, "split_depth", split_depth.0));
-                    state.special.as_ref().map(|special| {
-                        serialize_field(&mut map, "tick", special.tick);
-                        serialize_field(&mut map, "tock", special.tock);
-                    });
-                    serialize_cell(&mut map, "code", state.code.as_ref(), true)?;
-                    serialize_cell(&mut map, "data", state.data.as_ref(), true)?;
-                    serialize_cell(&mut map, "library", state.library.root(), true)?;
-                },
-                AccountState::AccountFrozen(state_hash) => {
-                    serialize_id(&mut map, "state_hash", Some(&state_hash));
-                },
-                _ => {}
-            };
+    if let Some(addr) = set.account.get_addr() {
+        serialize_field(&mut map, id_str, addr.to_string());
+        serialize_field(&mut map, "workchain_id", addr.get_workchain_id());
+    }
+    serialize_field(&mut map, "boc", base64::encode(&set.boc));
+    if let Some(storage_stat) = set.account.storage_info() {
+        serialize_field(&mut map, "last_paid", storage_stat.last_paid());
+        serialize_u64(&mut map, "bits", &storage_stat.used().bits(), mode);
+        serialize_u64(&mut map, "cells", &storage_stat.used().cells(), mode);
+        serialize_u64(&mut map, "public_cells", &storage_stat.used().public_cells(), mode);
+        if let Some(grams) = storage_stat.due_payment() {
+            serialize_grams(&mut map, "due_payment", &grams, mode);
         }
-        None => ton_types::fail!("Attempt to call serde::Serialize::serialize for AccountNone")
+    }
+    serialize_lt(&mut map, "last_trans_lt", &set.account.last_tr_time().unwrap_or_default(), mode);
+    set.account.balance().map(|cc| serialize_cc(&mut map, "balance", cc, mode)).transpose()?;
+    match set.account.status() {
+        AccountStatus::AccStateActive => {
+            if let Some(state) = set.account.state_init() {
+                state.split_depth().map(|split_depth| serialize_field(&mut map, "split_depth", split_depth.0));
+                state.special().map(|special| {
+                    serialize_field(&mut map, "tick", special.tick);
+                    serialize_field(&mut map, "tock", special.tock);
+                });
+                serialize_cell(&mut map, "code", state.code(), true)?;
+                serialize_cell(&mut map, "data", state.data(), true)?;
+                serialize_cell(&mut map, "library", state.libraries().root(), true)?;
+            }
+        }
+        AccountStatus::AccStateFrozen => {
+            serialize_id(&mut map, "state_hash", set.account.frozen_hash())
+        }
+        AccountStatus::AccStateUninit => {
+
+        }
+        AccountStatus::AccStateNonexist => ton_types::fail!("Attempt to call serde::Serialize::serialize for AccountNone")
+    };
+    if let Some(proof) = &set.proof {
+        serialize_field(&mut map, "proof", base64::encode(&proof));
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
     Ok(map)
@@ -1763,14 +1768,14 @@ pub fn db_serialize_message_ex(id_str: &'static str, set: &MessageSerializationS
         });
     }
     if let Some(state) = &set.message.state_init() {
-        state.split_depth.as_ref().map(|split_depth| serialize_field(&mut map, "split_depth", split_depth.0));
-        state.special.as_ref().map(|special| {
+        state.split_depth().map(|split_depth| serialize_field(&mut map, "split_depth", split_depth.0));
+        state.special().map(|special| {
             serialize_field(&mut map, "tick", special.tick);
             serialize_field(&mut map, "tock", special.tock);
         });
-        serialize_cell(&mut map, "code", state.code.as_ref(), true)?;
-        serialize_cell(&mut map, "data", state.data.as_ref(), true)?;
-        serialize_cell(&mut map, "library", state.library.root(), true)?;
+        serialize_cell(&mut map, "code", state.code(), true)?;
+        serialize_cell(&mut map, "data", state.data(), true)?;
+        serialize_cell(&mut map, "library", state.libraries().root(), true)?;
     }
 
     serialize_slice(&mut map, "body", set.message.body().as_ref(), true)?;
