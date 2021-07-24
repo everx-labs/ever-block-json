@@ -27,13 +27,12 @@ use num_traits::sign::Signed;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
-const VERSION: u32 = 6;
+const VERSION: u32 = 5;
 // Version changes
 // 2 - fix var account addresses tag in block (`8_` postfix)
 // 3 - `balance_delta` added to transaction
 // 4 - decimal number fields companions
 // 5 - storage stat in account
-// 6 - init_code_hash in account
 
 const STD_ACCOUNT_ID_LENGTH: usize = 256;
 
@@ -440,14 +439,23 @@ fn serialize_bounce_phase(map: &mut Map<String, Value>, ph: Option<&TrBouncePhas
 
 fn serialize_cc(map: &mut Map<String, Value>, prefix: &'static str, cc: &CurrencyCollection, mode: SerializationMode) -> Result<()> {
     serialize_grams(map,  prefix, &cc.grams, mode);
-    let other = serialize_ecc(&cc.other, mode)?;
+    let mut other = Vec::new();
+    cc.other_as_hashmap().iterate_slices(|ref mut key, ref mut value| -> Result<bool> {
+        let key = key.get_next_u32()?;
+        let value = VarUInteger32::construct_from(value)?;
+        let mut other_map = Map::new();
+        serialize_field(&mut other_map, "currency", key);
+        serialize_bigint(&mut other_map, "value", &value.value(), mode);
+        other.push(other_map);
+        Ok(true)
+    })?;
     if !other.is_empty() {
         map.insert(format!("{}_other", prefix), other.into());
     }
     Ok(())
 }
 
-fn serialize_ecc(ecc: &ExtraCurrencyCollection, mode: SerializationMode) -> Result<Vec<Map<String, Value>>> {
+fn serialize_ecc(ecc: &ExtraCurrencyCollection, mode: SerializationMode) -> Result<Value> {
     let mut other = Vec::new();
     ecc.iterate_with_keys(|key: u32, ref mut value| -> Result<bool> {
         let mut other_map = Map::new();
@@ -456,7 +464,7 @@ fn serialize_ecc(ecc: &ExtraCurrencyCollection, mode: SerializationMode) -> Resu
         other.push(other_map);
         Ok(true)
     })?;
-    Ok(other)
+    Ok(other.into())
 }
 
 fn serialize_scc(
@@ -852,7 +860,7 @@ fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Serial
             serialize_grams(&mut map, "mint_add_price", &c.mint_add_price, mode);
         },
         ConfigParamEnum::ConfigParam7(ref c) => {
-            return Ok(Some(serialize_ecc(&c.to_mint, mode)?.into()));
+            return Ok(Some(serialize_ecc(&c.to_mint, mode)?));
         },
         ConfigParamEnum::ConfigParam8(ref c) => {
             serialize_field(&mut map, "version", c.global_version.version);
@@ -1641,7 +1649,6 @@ pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationS
         serialize_field(&mut map, "workchain_id", addr.get_workchain_id());
     }
     serialize_field(&mut map, "boc", base64::encode(&set.boc));
-    serialize_id(&mut map, "init_code_hash", set.account.init_code_hash());
     if let Some(storage_stat) = set.account.storage_info() {
         serialize_field(&mut map, "last_paid", storage_stat.last_paid());
         serialize_u64(&mut map, "bits", &storage_stat.used().bits(), mode);
