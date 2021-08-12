@@ -16,7 +16,7 @@
 
 use ton_block::*;
 use ton_types::{
-    Result,
+    Result, fail,
     {AccountId, Cell, SliceData},
     cells_serialization::{serialize_toc},
     dictionary::HashmapType,
@@ -127,6 +127,46 @@ fn get_msg_fees(msg: &Message) -> Option<(&Grams, &Grams)> {
     }
 }
 
+pub fn u64_to_string(value: u64) -> String {
+    let mut string = format!("{:x}", value);
+    string.insert_str(0, &format!("{:x}", string.len() - 1));
+    string
+}
+
+pub fn bigint_to_string(value: &BigInt) -> String {
+    if num::bigint::Sign::Minus == value.sign() {
+        let bytes: Vec<u8> = value.to_bytes_be().1.iter().map(|byte| byte ^ 0xFF).collect();
+        let string = hex::encode(bytes).trim_start_matches("f").to_owned();
+        format!("-{:02x}{}", (string.len() - 1) ^ 0xFF, string)
+    } else {
+        let mut string = format!("{:x}", value);
+        string.insert_str(0, &format!("{:02x}", string.len() - 1));
+        string
+    }
+}
+
+pub fn block_order(block: &Block, mc_seq_no: u32) -> Result<String> {
+    let info = block.read_info()?;
+    let master_order = u64_to_string(mc_seq_no as u64);
+    if !info.shard().is_masterchain() {
+        let mut workchain_order = u64_to_string(info.shard().workchain_id().abs() as u64);
+        if info.shard().workchain_id() < 0 {
+            workchain_order = format!("-{}", workchain_order);
+        }
+        let seq_no_order = u64_to_string(info.seq_no() as u64);
+        let shard_order = u64_to_string(info.shard().shard_prefix_with_tag().reverse_bits());
+        Ok(master_order + &workchain_order + &seq_no_order + &shard_order)
+    } else if info.seq_no() != mc_seq_no {
+        fail!(
+            "provided mc_seq_no {} is not equal to seq_no of masterchain block {}",
+            mc_seq_no,
+            info.seq_no(),
+        )
+    } else {
+        Ok(master_order + "m")
+    }
+}
+
 fn serialize_grams(
     map: &mut Map<String, Value>,
     id_str: &'static str,
@@ -158,9 +198,7 @@ fn serialize_u64(
     let string = match mode {
         SerializationMode::Standart => {
             serialize_field(map, &(id_str.to_owned() + "_dec"), value.to_string());
-            let mut string = format!("{:x}", value);
-            string.insert_str(0, &format!("{:x}", string.len() - 1));
-            string
+            u64_to_string(*value)
         }
         SerializationMode::QServer => {
             format!("0x{:x}", value)
@@ -179,9 +217,7 @@ fn serialize_lt(
     let string = match mode {
         SerializationMode::Standart => {
             serialize_field(map, &(id_str.to_owned() + "_dec"), value.to_string());
-            let mut string = format!("{:x}", value);
-            string.insert_str(0, &format!("{:x}", string.len() - 1));
-            string
+            u64_to_string(*value)
         }
         SerializationMode::QServer => {
             format!("0x{:x}", value)
@@ -198,30 +234,18 @@ fn serialize_bigint(
     value: &BigInt,
     mode: SerializationMode
 ) {
-    let string = if num::bigint::Sign::Minus == value.sign() {
-        match mode {
-            SerializationMode::Standart => {
-                let bytes: Vec<u8> = value.to_bytes_be().1.iter().map(|byte| byte ^ 0xFF).collect();
-                let string = hex::encode(bytes).trim_start_matches("f").to_owned();
-                format!("-{:02x}{}", (string.len() - 1) ^ 0xFF, string)
-            }
-            SerializationMode::QServer => {
-                format!("-0x{:x}", value.abs())
-            }
-            SerializationMode::Debug => format!("{}", value)
+    let string = match mode {
+        SerializationMode::Standart => {
+            bigint_to_string(value)
         }
-    } else {
-        match mode {
-            SerializationMode::Standart => {
-                let mut string = format!("{:x}", value);
-                string.insert_str(0, &format!("{:02x}", string.len() - 1));
-                string
-            }
-            SerializationMode::QServer => {
+        SerializationMode::QServer => {
+            if num::bigint::Sign::Minus == value.sign() {
+                format!("-0x{:x}", value.abs())
+            } else {
                 format!("0x{:x}", value)
             }
-            SerializationMode::Debug => format!("{}", value)
         }
+        SerializationMode::Debug => format!("{}", value)
     };
 
     if let SerializationMode::Standart = mode {
@@ -230,7 +254,7 @@ fn serialize_bigint(
     serialize_field(map, id_str, string);
 }
 
-fn shard_to_string(value: u64) -> String {
+pub fn shard_to_string(value: u64) -> String {
     format!("{:016x}", value)
 }
 
@@ -289,7 +313,7 @@ fn serialize_uint256(map: &mut Map<String, Value>, name: & str, value: &UInt256)
     map.insert(name.to_string(), value.to_hex_string().into());
 }
 
-fn serialize_field<S: Into<Value>>(map: &mut Map<String, Value>, id_str: &str, value: S) {
+fn serialize_field(map: &mut Map<String, Value>, id_str: &str, value: impl Into<Value>) {
     map.insert(id_str.to_string(), value.into());
 }
 
@@ -793,7 +817,7 @@ fn serialize_validators_set(map: &mut Map<String, Value>, set: &ValidatorSet, mo
     let mut vector = Vec::<Value>::new();
     for v in set.list() {
         let mut map = Map::new();
-        serialize_field(&mut map, "public_key", hex::encode(v.public_key.key_bytes()));
+        serialize_field(&mut map, "public_key", hex::encode(v.public_key.as_slice()));
         serialize_u64(&mut map, "weight", &v.weight, mode);
         serialize_id(&mut map, "adnl_addr", v.adnl_addr.as_ref());
         vector.push(map.into());
@@ -963,6 +987,16 @@ fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Serial
         },
         ConfigParamEnum::ConfigParam39(ref c) => {
             return Ok(Some(serialize_validator_signed_temp_keys(&c.validator_keys)?));
+        },
+        ConfigParamEnum::ConfigParam40(ref c) => {
+            serialize_field(&mut map, "slashing_period_mc_blocks_count", c.slashing_config.slashing_period_mc_blocks_count);
+            serialize_field(&mut map, "resend_mc_blocks_count", c.slashing_config.resend_mc_blocks_count);
+            serialize_field(&mut map, "min_samples_count", c.slashing_config.min_samples_count);
+            serialize_field(&mut map, "collations_score_weight", c.slashing_config.collations_score_weight);
+            serialize_field(&mut map, "signing_score_weight", c.slashing_config.signing_score_weight);
+            serialize_field(&mut map, "min_slashing_protection_score", c.slashing_config.min_slashing_protection_score);
+            serialize_field(&mut map, "z_param_numerator", c.slashing_config.z_param_numerator);
+            serialize_field(&mut map, "z_param_denominator", c.slashing_config.z_param_denominator);
         },
         _ => {
             return Ok(None)
@@ -1187,6 +1221,30 @@ pub fn debug_block(block: Block) -> Result<String> {
     };
     let map = db_serialize_block_ex("id", &set, SerializationMode::Debug)?;
     Ok(format!("{:#}", serde_json::json!(map)))
+}
+
+pub fn serialize_config_param(block: &Block, config_number: u32) -> Result<Option<String>> {
+    let extra = block.read_extra()?;
+    if let Some(master) = extra.read_custom()? {
+        if let Some(config) = master.config() {
+            let mut master_map = Map::new();
+            config.config_params.iterate_slices(|mut num, mut cp_ref| -> Result<bool> {
+                //println!("key {}", num);
+                let num = num.get_next_u32()?;
+                if num != config_number {
+                    return Ok(true);
+                }
+                let cp: SliceData = cp_ref.checked_drain_reference()?.into();
+                if let Some(cp) = serialize_known_config_param(num, &mut cp.clone(), SerializationMode::Standart)? {
+                    master_map.insert(format!("p{}", num), cp.into());
+                }
+                Ok(true)
+            })?;
+
+            return Ok(Some(format!("{:#}", serde_json::json!(master_map))));
+        }
+    }
+    Ok(None)
 }
 
 pub fn debug_block_full(block: &Block) -> Result<String> {
