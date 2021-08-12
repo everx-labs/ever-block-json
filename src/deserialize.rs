@@ -28,7 +28,7 @@ use ton_block::{
     ConfigParam7, ConfigParam8, ConfigParam9,
     ConfigParam10, ConfigParam11, ConfigParam12, ConfigParam13, ConfigParam14,
     ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
-    ConfigParam29, ConfigParam31, ConfigParam34,
+    ConfigParam29, ConfigParam31, ConfigParam34, ConfigParam40,
     ConfigParam18Map, ConfigParams,
     ConfigProposalSetup,
     ConsensusConfig,
@@ -44,7 +44,7 @@ use ton_block::{
     MsgForwardPrices,
     ParamLimits,
     ShardAccount, ShardIdent, ShardStateUnsplit,
-    SigPubKey,
+    SlashingConfig,
     StoragePrices,
     ValidatorDescr, ValidatorSet,
     Workchains, WorkchainDescr, WorkchainFormat, WorkchainFormat0, WorkchainFormat1,
@@ -445,7 +445,7 @@ pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
     p34.get_vec("list")?.iter().try_for_each::<_, Result<()>>(|p| {
         let p = PathMap::cont(&config, "p34", p)?;
         list.push(ValidatorDescr::with_params(
-            SigPubKey::from_str(p.get_str("public_key")?)?,
+            FromStr::from_str(p.get_str("public_key")?)?,
             p.get_num("weight")? as u64,
             None
         ));
@@ -459,6 +459,20 @@ pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
         list
     )?;
     set_config(&config, &mut config_params, ConfigParamEnum::ConfigParam34(ConfigParam34 {cur_validators}))?;
+
+    let mut slashing_config = SlashingConfig::default();
+    if let Ok(p40) = config.get_obj("p40") {
+        slashing_config.slashing_period_mc_blocks_count = p40.get_num("slashing_period_mc_blocks_count").unwrap_or(slashing_config.slashing_period_mc_blocks_count.into()) as u32;
+        slashing_config.resend_mc_blocks_count = p40.get_num("resend_mc_blocks_count").unwrap_or(slashing_config.resend_mc_blocks_count.into()) as u32;
+        slashing_config.min_samples_count = p40.get_num("min_samples_count").unwrap_or(slashing_config.min_samples_count.into()) as u32;
+        slashing_config.collations_score_weight = p40.get_num("collations_score_weight").unwrap_or(slashing_config.collations_score_weight.into()) as u32;
+        slashing_config.signing_score_weight = p40.get_num("signing_score_weight").unwrap_or(slashing_config.signing_score_weight.into()) as u32;
+        slashing_config.min_slashing_protection_score = p40.get_num("min_slashing_protection_score").unwrap_or(slashing_config.min_slashing_protection_score.into()) as u32;
+        slashing_config.z_param_numerator = p40.get_num("z_param_numerator").unwrap_or(slashing_config.z_param_numerator.into()) as u32;
+        slashing_config.z_param_denominator = p40.get_num("z_param_denominator").unwrap_or(slashing_config.z_param_denominator.into()) as u32;
+    }
+    set_config(&config, &mut config_params, ConfigParamEnum::ConfigParam40(ConfigParam40 {slashing_config}))?;
+
     Ok(config_params)
 }
 
