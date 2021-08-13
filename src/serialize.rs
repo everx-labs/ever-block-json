@@ -1223,28 +1223,16 @@ pub fn debug_block(block: Block) -> Result<String> {
     Ok(format!("{:#}", serde_json::json!(map)))
 }
 
-pub fn serialize_config_param(block: &Block, config_number: u32) -> Result<Option<String>> {
-    let extra = block.read_extra()?;
-    if let Some(master) = extra.read_custom()? {
-        if let Some(config) = master.config() {
-            let mut master_map = Map::new();
-            config.config_params.iterate_slices(|mut num, mut cp_ref| -> Result<bool> {
-                //println!("key {}", num);
-                let num = num.get_next_u32()?;
-                if num != config_number {
-                    return Ok(true);
-                }
-                let cp: SliceData = cp_ref.checked_drain_reference()?.into();
-                if let Some(cp) = serialize_known_config_param(num, &mut cp.clone(), SerializationMode::Standart)? {
-                    master_map.insert(format!("p{}", num), cp.into());
-                }
-                Ok(true)
-            })?;
-
-            return Ok(Some(format!("{:#}", serde_json::json!(master_map))));
+pub fn serialize_config_param(config: &ConfigParams, config_number: u32) -> Result<String> {
+    let mut master_map = Map::new();
+    if let Some(mut cell) = config.config_params.get(config_number.serialize()?.into())? {
+        let cp = cell.checked_drain_reference()?;
+        if let Some(cp) = serialize_known_config_param(config_number, &mut cp.into(), SerializationMode::Standart)? {
+            master_map.insert(format!("p{}", &config_number), cp.into());
         }
     }
-    Ok(None)
+    let json = serde_json::to_string_pretty(&master_map)?;
+    Ok(json)
 }
 
 pub fn debug_block_full(block: &Block) -> Result<String> {
