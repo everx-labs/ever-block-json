@@ -177,6 +177,25 @@ impl<'m, 'a> PathMap<'m, 'a> {
             }
         }
     }
+    fn get_bigint(&self, name: &'a str) -> Result<BigInt> {
+        let item = self.get_item(name)?;
+        match item.as_i64() {
+            Some(v) => Ok(v.into()),
+            None => match item.as_str() {
+                Some(s) => {
+                    BigInt::from_str(s)
+                        .map_err(|_| error!("{}/{} must be the integer or a string with the integer {}", self.path.join("/"), name, s))
+                }
+                None => fail!("{}/{} must be the integer or a string with the integer {}", self.path.join("/"), name, item)
+            }
+        }
+    }
+    #[allow(dead_code)]
+    fn get_u32(&self, name: &'a str, value: &mut u32) {
+        if let Ok(new_value) = self.get_num(name) {
+            *value = new_value as u32;
+        }
+    }
     fn get_bool(&self, name: &'a str) -> Result<bool> {
         self.get_item(name)?
             .as_bool()
@@ -483,8 +502,8 @@ pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
     state.set_min_ref_mc_seqno(std::u32::MAX);
     state.set_global_id(map_path.get_num("global_id")? as i32);
     state.set_gen_time(map_path.get_num("gen_utime")? as u32);
-    let balance = map_path.get_num("total_balance")? as u64;
-    state.set_total_balance(CurrencyCollection::with_grams(balance));
+    let balance = Grams::from(map_path.get_bigint("total_balance")?);
+    state.set_total_balance(CurrencyCollection::from_grams(balance));
 
     let master = map_path.get_obj("master")?;
     let mut extra = McStateExtra::default();
