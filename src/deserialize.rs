@@ -338,9 +338,9 @@ pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
     }
 
     let p14 = config.get_obj("p14")?;
-    let mut block_create_fees = BlockCreateFees::default();
-    block_create_fees.masterchain_block_fee = Grams::from(p14.get_num("masterchain_block_fee")? as u64);
-    block_create_fees.basechain_block_fee   = Grams::from(p14.get_num("basechain_block_fee")? as u64);
+    let masterchain_block_fee = Grams::from(p14.get_num("masterchain_block_fee")? as u64);
+    let basechain_block_fee = Grams::from(p14.get_num("basechain_block_fee")? as u64);
+    let block_create_fees = BlockCreateFees { masterchain_block_fee, basechain_block_fee };
     set_config(&config, &mut config_params, ConfigParamEnum::ConfigParam14(ConfigParam14 {block_create_fees}))?;
 
     let p15 = config.get_obj("p15")?;
@@ -481,14 +481,14 @@ pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
 
     let mut slashing_config = SlashingConfig::default();
     if let Ok(p40) = config.get_obj("p40") {
-        slashing_config.slashing_period_mc_blocks_count = p40.get_num("slashing_period_mc_blocks_count").unwrap_or(slashing_config.slashing_period_mc_blocks_count.into()) as u32;
-        slashing_config.resend_mc_blocks_count = p40.get_num("resend_mc_blocks_count").unwrap_or(slashing_config.resend_mc_blocks_count.into()) as u32;
-        slashing_config.min_samples_count = p40.get_num("min_samples_count").unwrap_or(slashing_config.min_samples_count.into()) as u32;
-        slashing_config.collations_score_weight = p40.get_num("collations_score_weight").unwrap_or(slashing_config.collations_score_weight.into()) as u32;
-        slashing_config.signing_score_weight = p40.get_num("signing_score_weight").unwrap_or(slashing_config.signing_score_weight.into()) as u32;
-        slashing_config.min_slashing_protection_score = p40.get_num("min_slashing_protection_score").unwrap_or(slashing_config.min_slashing_protection_score.into()) as u32;
-        slashing_config.z_param_numerator = p40.get_num("z_param_numerator").unwrap_or(slashing_config.z_param_numerator.into()) as u32;
-        slashing_config.z_param_denominator = p40.get_num("z_param_denominator").unwrap_or(slashing_config.z_param_denominator.into()) as u32;
+        p40.get_u32("slashing_period_mc_blocks_count", &mut slashing_config.slashing_period_mc_blocks_count);
+        p40.get_u32("resend_mc_blocks_count", &mut slashing_config.resend_mc_blocks_count);
+        p40.get_u32("min_samples_count", &mut slashing_config.min_samples_count);
+        p40.get_u32("collations_score_weight", &mut slashing_config.collations_score_weight);
+        p40.get_u32("signing_score_weight", &mut slashing_config.signing_score_weight);
+        p40.get_u32("min_slashing_protection_score", &mut slashing_config.min_slashing_protection_score);
+        p40.get_u32("z_param_numerator", &mut slashing_config.z_param_numerator);
+        p40.get_u32("z_param_denominator", &mut slashing_config.z_param_denominator);
     }
     set_config(&config, &mut config_params, ConfigParamEnum::ConfigParam40(ConfigParam40 {slashing_config}))?;
 
@@ -496,7 +496,7 @@ pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
 }
 
 pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
-    let map_path = PathMap::new(&map);
+    let map_path = PathMap::new(map);
 
     let mut state = ShardStateUnsplit::with_ident(ShardIdent::masterchain());
     state.set_min_ref_mc_seqno(std::u32::MAX);
