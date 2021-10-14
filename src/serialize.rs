@@ -18,7 +18,7 @@ use ton_block::*;
 use ton_types::{
     Result, fail,
     {AccountId, Cell, SliceData},
-    cells_serialization::{serialize_toc},
+    cells_serialization::{deserialize_tree_of_cells, serialize_toc},
     dictionary::HashmapType,
     types::UInt256,
 };
@@ -27,7 +27,7 @@ use num_traits::sign::Signed;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
-const VERSION: u32 = 7;
+const VERSION: u32 = 8;
 // Version changes
 // 2 - fix var account addresses tag in block (`8_` postfix)
 // 3 - `balance_delta` added to transaction
@@ -35,6 +35,7 @@ const VERSION: u32 = 7;
 // 5 - storage stat in account
 // 6 - init_code_hash in account
 // 7 - ext_in_msg_fee in transaction
+// 8 - file_hash in block and shard state
 
 const STD_ACCOUNT_ID_LENGTH: usize = 256;
 
@@ -1213,11 +1214,38 @@ fn serialize_mc_state_extra(map: &mut Map<String, Value>, id_str: &str, master: 
     Ok(())
 }
 
+fn serialize_file_hash(map: &mut Map<String, Value>, file_hash: Option<&UInt256>, boc: &[u8]) {
+    match file_hash {
+        Some(file_hash) => serialize_id(map, "file_hash", Some(file_hash)),
+        None => serialize_id(map, "file_hash", Some(&UInt256::calc_file_hash(boc))),
+    }
+}
+
 pub struct BlockSerializationSet {
     pub block: Block,
     pub id: BlockId,
     pub status: BlockProcessingStatus,
     pub boc: Vec<u8>,
+}
+
+pub struct BlockSerializationSetFH<'a> {
+    pub block: &'a Block,
+    pub id: &'a BlockId,
+    pub status: BlockProcessingStatus,
+    pub boc: &'a [u8],
+    pub file_hash: Option<&'a UInt256>,
+}
+
+impl<'a> From<&'a BlockSerializationSet> for BlockSerializationSetFH<'a> {
+    fn from(set: &'a BlockSerializationSet) -> Self {
+        BlockSerializationSetFH {
+            block: &set.block,
+            id: &set.id,
+            status: set.status,
+            boc: &set.boc,
+            file_hash: None,
+        }
+    }
 }
 
 pub fn debug_block(block: Block) -> Result<String> {
@@ -1279,14 +1307,23 @@ pub fn debug_block_full(block: &Block) -> Result<String> {
     Ok(text)
 }
 
-pub fn db_serialize_block(id_str: &'static str, set: &BlockSerializationSet) -> Result<Map<String, Value>> {
+pub fn db_serialize_block<'a>(
+    id_str: &'static str,
+    set: impl Into<BlockSerializationSetFH<'a>>
+) -> Result<Map<String, Value>> {
     db_serialize_block_ex(id_str, set, SerializationMode::Standart)
 }
 
-pub fn db_serialize_block_ex(id_str: &'static str, set: &BlockSerializationSet, mode: SerializationMode) -> Result<Map<String, Value>> {
+pub fn db_serialize_block_ex<'a>(
+    id_str: &'static str,
+    set:  impl Into<BlockSerializationSetFH<'a>>,
+    mode: SerializationMode
+) -> Result<Map<String, Value>> {
+    let set: BlockSerializationSetFH = set.into();
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
     serialize_id(&mut map, id_str, Some(&set.id));
+    serialize_file_hash(&mut map, set.file_hash, set.boc);
     serialize_field(&mut map, "status", set.status as u8);
     if mode.is_q_server() {
         serialize_field(&mut map, "status_name", match set.status {
@@ -1972,6 +2009,7 @@ pub struct ShardStateSerializationSet {
     pub boc: Vec<u8>,
 }
 
+
 pub fn db_serialize_shard_state(id_str: &'static str, set: &ShardStateSerializationSet) -> Result<Map<String, Value>> {
     db_serialize_shard_state_ex(id_str, set, SerializationMode::Standart)
 }
@@ -1980,6 +2018,9 @@ pub fn db_serialize_shard_state_ex(id_str: &'static str, set: &ShardStateSeriali
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
     serialize_field(&mut map, id_str, set.id.as_str());
+    let cell = deserialize_tree_of_cells(&mut set.boc.as_slice())?;
+    serialize_id(&mut map, "root_hash", Some(&cell.repr_hash()));
+    serialize_file_hash(&mut map, None, &set.boc);
     serialize_id(&mut map, "block_id", set.block_id.as_ref());
     serialize_field(&mut map, "workchain_id", set.workchain_id);
     serialize_field(&mut map, "boc", base64::encode(&set.boc));
@@ -2013,8 +2054,8 @@ pub fn debug_state(mut state: ShardStateUnsplit) -> Result<String> {
         block_id: None,
         workchain_id: state.shard().workchain_id(),
         id: format!("{}", state.shard()),
+        boc: state.write_to_bytes()?,
         state,
-        boc: vec![],
     };
     let map = db_serialize_shard_state_ex("id", &set, SerializationMode::Debug)?;
     Ok(format!("{:#}", serde_json::json!(map)))
@@ -2025,8 +2066,8 @@ pub fn debug_state_full(state: ShardStateUnsplit) -> Result<String> {
         block_id: None,
         workchain_id: state.shard().workchain_id(),
         id: format!("{}", state.shard()),
+        boc: state.write_to_bytes()?,
         state,
-        boc: vec![],
     };
     let map = db_serialize_shard_state_ex("id", &set, SerializationMode::Debug)?;
     Ok(format!("{:#}", serde_json::json!(map)))

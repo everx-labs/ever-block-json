@@ -17,7 +17,7 @@
 [package]
 edition = "2018"
 name = "ton_block_json"
-version = "0.6.22"
+version = "0.6.23"
 build = "build.rs"
 
 [dependencies]
@@ -29,7 +29,6 @@ failure = "0.1.8"
 hex = "0.4.0"
 num = "^0.2"
 num-traits = "0.2"
-rand = "0.7.2"
 serde = "1.0.105"
 serde_derive = "1.0.105"
 serde_json = {version = "^1.0", features = ["preserve_order"]}
