@@ -1042,7 +1042,6 @@ fn serialize_shard_hashes(map: &mut Map<String, Value>, id_str: &str, hashes: &S
     let mut min_gen_utime = u32::max_value();
     let mut max_gen_utime = 0;
     hashes.iterate_with_keys(&mut |key: i32, InRefValue(tree): InRefValue<BinTree<ShardDescr>>| {
-        let key = key.to_string();
         tree.iterate(&mut |shard: SliceData, descr| {
             if let Ok(descr) = serialize_shard_descr(&descr, mode) {
                 shard_hashes.push(serde_json::json!({
