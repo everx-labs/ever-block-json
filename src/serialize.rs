@@ -1116,7 +1116,6 @@ fn serialize_shard_accounts(map: &mut Map<String, Value>, id_str: &str, shard_ac
     shard_accounts.iterate_objects(&mut |ref mut value: ShardAccount| -> Result<bool> {
         let account_set = AccountSerializationSet {
             account: value.read_account()?,
-            prev_account_state: None,
             boc: serialize_toc(&value.account_cell())?,
             proof: None,
         };
@@ -1221,7 +1220,6 @@ fn serialize_file_hash(map: &mut Map<String, Value>, file_hash: Option<&UInt256>
     }
 }
 
-#[derive(Default)]
 pub struct BlockSerializationSet {
     pub block: Block,
     pub id: BlockId,
@@ -1483,7 +1481,6 @@ pub fn db_serialize_block_ex<'a>(
     Ok(map)
 }
 
-#[derive(Default)]
 pub struct TransactionSerializationSet {
     pub transaction: Transaction,
     pub id: TransactionId,
@@ -1720,10 +1717,8 @@ fn serialize_account_status(map: &mut Map<String, Value>, name: &'static str, st
     }
 }
 
-#[derive(Default)]
 pub struct AccountSerializationSet {
     pub account: Account,
-    pub prev_account_state: Option<Account>,
     pub boc: Vec<u8>,
     pub proof: Option<Vec<u8>>,
 }
@@ -1731,7 +1726,6 @@ pub struct AccountSerializationSet {
 pub fn debug_account(account: Account) -> Result<String> {
     let set = AccountSerializationSet {
         account,
-        prev_account_state: None,
         boc: Vec::new(),
         proof: None,
     };
@@ -1790,16 +1784,11 @@ pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationS
         serialize_field(&mut map, "proof", base64::encode(&proof));
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
-    if let Some(prev_state) = &set.prev_account_state {
-        serialize_id(&mut map, "prev_code_hash", prev_state.get_code().map(|cell| cell.repr_hash()).as_ref());
-    }
     Ok(map)
 }
 
-#[derive(Default)]
 pub struct DeletedAccountSerializationSet {
     pub account_id: AccountId,
-    pub prev_account_state: Option<Account>,
     pub workchain_id: i32
 }
 
@@ -1818,14 +1807,10 @@ pub fn db_serialize_deleted_account_ex(
     serialize_field(&mut map, id_str, address.to_string());
     serialize_field(&mut map, "workchain_id", set.workchain_id);
     serialize_account_status(&mut map, "acc_type", &AccountStatus::AccStateNonexist, mode);
-    if let Some(prev_state) = &set.prev_account_state {
-        serialize_id(&mut map, "prev_code_hash", prev_state.get_code().map(|cell| cell.repr_hash()).as_ref());
-    }
 
     Ok(map)
 }
 
-#[derive(Default)]
 pub struct MessageSerializationSet {
     pub message: Message,
     pub id: MessageId,
@@ -2015,7 +2000,6 @@ pub fn db_serialize_block_proof_ex(
     Ok(map)
 }
 
-#[derive(Default)]
 pub struct ShardStateSerializationSet {
     pub state: ShardStateUnsplit,
     pub block_id: Option<UInt256>,
