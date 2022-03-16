@@ -16,7 +16,7 @@
 
 use ton_block::*;
 use ton_types::{
-    Result, fail,
+    Result, fail, BuilderData,
     {AccountId, Cell, SliceData},
     cells_serialization::{deserialize_tree_of_cells, serialize_toc},
     dictionary::HashmapType,
@@ -1114,10 +1114,19 @@ fn serialize_block_create_stats(map: &mut Map<String, Value>, id_str: &str, stat
 fn serialize_shard_accounts(map: &mut Map<String, Value>, id_str: &str, shard_accounts: &ShardAccounts, mode: SerializationMode) -> Result<()> {
     let mut accounts = Vec::new();
     shard_accounts.iterate_objects(&mut |ref mut value: ShardAccount| -> Result<bool> {
+        let account = value.read_account()?;
+        let mut boc1 = None;
+        if account.init_code_hash().is_some() {
+            let mut builder = BuilderData::new();
+            account.write_original_format(&mut builder)?;
+            boc1 = Some(serialize_toc(&builder.into_cell()?)?);
+        }
+
         let account_set = AccountSerializationSet {
-            account: value.read_account()?,
+            account,
             prev_account_state: None,
             boc: serialize_toc(&value.account_cell())?,
+            boc1,
             proof: None,
         };
         let mut account = db_serialize_account_ex("id", &account_set, mode)?;
@@ -1567,7 +1576,7 @@ pub fn db_serialize_transaction_ex<'a>(
     let mut ext_in_msg_fee = None;
     let (tr_type, tr_type_name) = match &set.transaction.read_description()? {
         TransactionDescr::Ordinary(tr) => {
-            let mut fees = set.transaction.total_fees.grams.clone();
+            let mut fees = set.transaction.total_fees().grams.clone();
             if let Some(fee) = serialize_storage_phase(&mut map, tr.storage_ph.as_ref(), mode) {
                 fees.sub(fee)?;
             }
@@ -1635,11 +1644,11 @@ pub fn db_serialize_transaction_ex<'a>(
     if mode.is_q_server() {
         serialize_field(&mut map, "tr_type_name", tr_type_name);
     }
-    serialize_lt(&mut map, "lt", &set.transaction.lt, mode);
-    serialize_id(&mut map, "prev_trans_hash", Some(&set.transaction.prev_trans_hash));
-    serialize_lt(&mut map, "prev_trans_lt", &set.transaction.prev_trans_lt, mode);
-    serialize_field(&mut map, "now", set.transaction.now);
-    serialize_field(&mut map, "outmsg_cnt", set.transaction.outmsg_cnt);
+    serialize_lt(&mut map, "lt", &set.transaction.logical_time(), mode);
+    serialize_id(&mut map, "prev_trans_hash", Some(set.transaction.prev_trans_hash()));
+    serialize_lt(&mut map, "prev_trans_lt", &set.transaction.prev_trans_lt(), mode);
+    serialize_field(&mut map, "now", set.transaction.now());
+    serialize_field(&mut map, "outmsg_cnt", set.transaction.msg_count());
     serialize_account_status(&mut map, "orig_status", &set.transaction.orig_status, mode);
     serialize_account_status(&mut map, "end_status", &set.transaction.end_status, mode);
     let mut balance_delta = SignedCurrencyCollection::new();
@@ -1690,18 +1699,23 @@ pub fn db_serialize_transaction_ex<'a>(
         serialize_field(&mut map, "account_addr", address.to_string());
         serialize_field(&mut map, "workchain_id", address.get_workchain_id());
     } else {
-        serialize_field(&mut map, "account_id", set.transaction.account_addr.as_hex_string());
+        serialize_field(&mut map, "account_id", set.transaction.account_id().as_hex_string());
     }
-    serialize_cc(&mut map, "total_fees", &set.transaction.total_fees, mode)?;
-    balance_delta.sub(&SignedCurrencyCollection::from_cc(&set.transaction.total_fees)?);
+    serialize_cc(&mut map, "total_fees", set.transaction.total_fees(), mode)?;
+    balance_delta.sub(&SignedCurrencyCollection::from_cc(set.transaction.total_fees())?);
     serialize_scc(&mut map, "balance_delta", &balance_delta, mode);
-    let state_update = set.transaction.state_update.read_struct()?;
+    let state_update = set.transaction.read_state_update()?;
     serialize_id(&mut map, "old_hash", Some(&state_update.old_hash));
     serialize_id(&mut map, "new_hash", Some(&state_update.new_hash));
     Ok(map)
 }
 
-fn serialize_account_status(map: &mut Map<String, Value>, name: &'static str, status: &AccountStatus, mode: SerializationMode) {
+fn serialize_account_status(
+    map: &mut Map<String, Value>, 
+    name: &'static str, 
+    status: &AccountStatus, 
+    mode: SerializationMode
+) {
     serialize_field(map, name, match status {
         AccountStatus::AccStateUninit   => 0b00,
         AccountStatus::AccStateFrozen   => 0b10,
@@ -1725,6 +1739,7 @@ pub struct AccountSerializationSet {
     pub account: Account,
     pub prev_account_state: Option<Account>,
     pub boc: Vec<u8>,
+    pub boc1: Option<Vec<u8>>,
     pub proof: Option<Vec<u8>>,
 }
 
@@ -1733,17 +1748,25 @@ pub fn debug_account(account: Account) -> Result<String> {
         account,
         prev_account_state: None,
         boc: Vec::new(),
+        boc1: None,
         proof: None,
     };
     let map = db_serialize_account_ex("id", &set, SerializationMode::Debug)?;
     Ok(format!("{:#}", serde_json::json!(map)))
 }
 
-pub fn db_serialize_account(id_str: &'static str, set: &AccountSerializationSet) -> Result<Map<String, Value>> {
+pub fn db_serialize_account(
+    id_str: &'static str, 
+    set: &AccountSerializationSet
+) -> Result<Map<String, Value>> {
     db_serialize_account_ex(id_str, set, SerializationMode::Standart)
 }
 
-pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationSet, mode: SerializationMode) -> Result<Map<String, Value>> {
+pub fn db_serialize_account_ex(
+    id_str: &'static str, 
+    set: &AccountSerializationSet, 
+    mode: SerializationMode
+) -> Result<Map<String, Value>> {
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
     if let Some(addr) = set.account.get_addr() {
@@ -1751,6 +1774,9 @@ pub fn db_serialize_account_ex(id_str: &'static str, set: &AccountSerializationS
         serialize_field(&mut map, "workchain_id", addr.get_workchain_id());
     }
     serialize_field(&mut map, "boc", base64::encode(&set.boc));
+    if let Some(boc1) = set.boc1.as_ref() {
+        serialize_field(&mut map, "boc1", base64::encode(boc1));
+    }
     serialize_id(&mut map, "init_code_hash", set.account.init_code_hash());
     if let Some(storage_stat) = set.account.storage_info() {
         serialize_field(&mut map, "last_paid", storage_stat.last_paid());
