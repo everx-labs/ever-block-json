@@ -14,7 +14,6 @@
  * under the License.
  */
 
-use num::BigInt;
 use serde_json::{Map, Value};
 use std::str::FromStr;
 use ton_types::{deserialize_tree_of_cells, error, fail, Result, UInt256};
@@ -174,14 +173,14 @@ impl<'m, 'a> PathMap<'m, 'a> {
             }
         }
     }
-    fn get_bigint(&self, name: &'a str) -> Result<BigInt> {
+    fn get_grams(&self, name: &'a str) -> Result<Grams> {
         let item = self.get_item(name)?;
         match item.as_i64() {
             Some(v) => Ok(v.into()),
             None => match item.as_str() {
                 Some(s) => {
-                    BigInt::from_str(s)
-                        .map_err(|_| error!("{}/{} must be the integer or a string with the integer {}", self.path.join("/"), name, s))
+                    Grams::from_str(s)
+                        .map_err(|err| error!("{}/{} must be the integer or a string with the integer {}: {}", self.path.join("/"), name, s, err))
                 }
                 None => fail!("{}/{} must be the integer or a string with the integer {}", self.path.join("/"), name, item)
             }
@@ -368,7 +367,7 @@ impl StateParser {
                 let currency = PathMap::cont(&config, "p7", currency)?;
                 to_mint.set(
                     &(currency.get_num("currency")? as u32),
-                    &BigInt::from_str(currency.get_str("value")?)?.into()
+                    &FromStr::from_str(currency.get_str("value")?)?
                 )
             })?;
             self.set_config(&config, ConfigParamEnum::ConfigParam7(ConfigParam7 {to_mint} ));
@@ -579,8 +578,8 @@ impl StateParser {
             Err(err) => self.errors.push(err)
         }
 
-        match map_path.get_bigint("total_balance") {
-            Ok(balance) => self.state.set_total_balance(CurrencyCollection::from_grams(Grams::from(balance))),
+        match map_path.get_grams("total_balance") {
+            Ok(balance) => self.state.set_total_balance(CurrencyCollection::from_grams(balance)),
             Err(err) => self.errors.push(err)
         }
 
@@ -603,8 +602,8 @@ impl StateParser {
                 Ok(v) => self.extra.validator_info.nx_cc_updated = v,
                 Err(err) => self.errors.push(err)
             }
-            match master.get_bigint("global_balance") {
-                Ok(balance) => self.extra.global_balance.grams = Grams::from(balance),
+            match master.get_grams("global_balance") {
+                Ok(balance) => self.extra.global_balance.grams = balance,
                 Err(err) => self.errors.push(err)
             }
             self.extra.after_key_block = true;
