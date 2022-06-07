@@ -1362,7 +1362,7 @@ pub fn db_serialize_block_ex<'a>(
     let set: BlockSerializationSetFH = set.into();
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
-    serialize_id(&mut map, id_str, Some(&set.id));
+    serialize_id(&mut map, id_str, Some(set.id));
     serialize_file_hash(&mut map, set.file_hash, set.boc);
     serialize_field(&mut map, "status", set.status as u8);
     if mode.is_q_server() {
@@ -1606,7 +1606,7 @@ pub fn db_serialize_transaction_ex<'a>(
     let mut ext_in_msg_fee = None;
     let (tr_type, tr_type_name) = match &set.transaction.read_description()? {
         TransactionDescr::Ordinary(tr) => {
-            let mut fees = set.transaction.total_fees().grams.clone();
+            let mut fees = set.transaction.total_fees().grams;
             if let Some(fee) = serialize_storage_phase(&mut map, tr.storage_ph.as_ref(), mode) {
                 fees.sub(fee)?;
             }

@@ -405,7 +405,7 @@ impl StateParser {
             let mut map = ConfigParam18Map::default();
             let mut index = 0u32;
             p18.iter().try_for_each::<_, Result<_>>(|value| {
-                let p = PathMap::cont(&config, "p18", value)?;
+                let p = PathMap::cont(config, "p18", value)?;
                 let p = StoragePrices {
                     utime_since:      p.get_num("utime_since")? as u32,
                     bit_price_ps:     p.get_num("bit_price_ps")? as u64,
@@ -634,9 +634,9 @@ impl StateParser {
         })?;
 
         self.parse_storage_prices(config)?;     // p18
-        self.parse_gas_limits(&config)?;        // p20 p21
-        self.parse_block_limits(&config)?;      // p22 p23
-        self.parse_msg_forward_prices(&config)?;// p24 p25
+        self.parse_gas_limits(config)?;        // p20 p21
+        self.parse_block_limits(config)?;      // p22 p23
+        self.parse_msg_forward_prices(config)?;// p24 p25
         self.parse_parameter(config, 28, Self::parse_catchain_config)?;
         self.parse_parameter(config, 29, Self::parse_consensus_config)?;
         self.parse_parameter(config, 30, Self::parse_delector_params)?;
@@ -653,7 +653,7 @@ impl StateParser {
         self.parse_parameter(config, 34, |p34| {
             let mut list = vec![];
             p34.get_vec("list").and_then(|p| p.iter().try_for_each::<_, Result<()>>(|p| {
-                let p = PathMap::cont(&config, "p34", p)?;
+                let p = PathMap::cont(config, "p34", p)?;
                 list.push(ValidatorDescr::with_params(
                     FromStr::from_str(p.get_str("public_key")?)?,
                     p.get_num("weight")? as u64,
@@ -900,11 +900,11 @@ pub fn parse_remp_status(map: &Map<String, Value>)
 
     let map_path = PathMap::new(map);
 
-    let source_id = map_path.get_uint256("source_id")?.into();
+    let source_id = map_path.get_uint256("source_id")?;
     let signature = map_path.get_base64("signature")?;
 
     let timestamp = map_path.get_num("timestamp")?;
-    let message_id = map_path.get_uint256("message_id")?.into();
+    let message_id = map_path.get_uint256("message_id")?;
 
     let status = match map_path.get_str("kind")? {
         // RempMessageStatus::TonNode_RempAccepted
@@ -920,16 +920,15 @@ pub fn parse_remp_status(map: &Map<String, Value>)
             RempMessageStatus::TonNode_RempAccepted (
                 rempmessagestatus::RempAccepted {
                     level,
-                    block_id: parse_block_id_ext(&map_path, false)?.into(),
-                    master_id: parse_block_id_ext(&map_path, true)
-                        .unwrap_or_else(|_| BlockIdExt::default()).into(),
+                    block_id: parse_block_id_ext(&map_path, false)?,
+                    master_id: parse_block_id_ext(&map_path, true).unwrap_or_default(),
                 }
             )
         }
         "Duplicate" => {
             RempMessageStatus::TonNode_RempDuplicate (
                 rempmessagestatus::RempDuplicate {
-                    block_id: parse_block_id_ext(&map_path, false)?.into(),
+                    block_id: parse_block_id_ext(&map_path, false)?,
                 }
             )
         }
@@ -945,7 +944,7 @@ pub fn parse_remp_status(map: &Map<String, Value>)
             RempMessageStatus::TonNode_RempIgnored (
                 rempmessagestatus::RempIgnored {
                     level,
-                    block_id: parse_block_id_ext(&map_path, false)?.into(),
+                    block_id: parse_block_id_ext(&map_path, false)?,
                 }
             )
         }
@@ -966,7 +965,7 @@ pub fn parse_remp_status(map: &Map<String, Value>)
             RempMessageStatus::TonNode_RempRejected (
                 rempmessagestatus::RempRejected {
                     level,
-                    block_id: parse_block_id_ext(&map_path, false)?.into(),
+                    block_id: parse_block_id_ext(&map_path, false)?,
                     error: map_path.get_str("error")?.into(),
                 }
             )
