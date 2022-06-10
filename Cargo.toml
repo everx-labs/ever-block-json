@@ -16,5 +16,3 @@ serde_json = { features = [ 'preserve_order' ], version = '^1.0' }
 ton_api = { git = 'https://github.com/tonlabs/ton-labs-tl', package = 'ton_api', tag = '0.2.128' }
 ton_block = { git = 'https://github.com/tonlabs/ton-labs-block', tag = '1.7.51' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types', tag = '1.11.2' }
-
-[dev-dependencies]
