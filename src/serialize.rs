@@ -1070,9 +1070,10 @@ fn serialize_shard_hashes(map: &mut Map<String, Value>, id_str: &str, hashes: &S
     hashes.iterate_with_keys(&mut |key: i32, InRefValue(tree): InRefValue<BinTree<ShardDescr>>| {
         tree.iterate(&mut |shard: SliceData, descr| {
             if let Ok(descr) = serialize_shard_descr(&descr, mode) {
+                let shard_ident = ShardIdent::with_prefix_slice(key, shard)?;
                 shard_hashes.push(serde_json::json!({
                     "workchain_id": key,
-                    "shard": shard_to_string(shard_ident_to_u64(shard.cell().data())),
+                    "shard": shard_ident.shard_prefix_as_str_with_tag(),
                     "descr": descr,
                 }));
             }

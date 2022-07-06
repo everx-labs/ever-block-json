@@ -859,11 +859,21 @@ impl StateParser {
     }
 }
 
-pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
+pub fn parse_config_with_mandatory_params(config: &Map<String, Value>, mandatories: &[u32]) -> Result<ConfigParams> {
     let config = PathMap::new(config);
     let mut parser = StateParser::new();
+    if !mandatories.is_empty() {
+        parser.mandatory_params = 0;
+        for mandatory in mandatories {
+            parser.mandatory_params |= (1 << mandatory) as u64;
+        }
+    }
     parser.parse_config(&config)?;
     Ok(parser.extra.config)
+}
+
+pub fn parse_config(config: &Map<String, Value>) -> Result<ConfigParams> {
+    parse_config_with_mandatory_params(config, &[])
 }
 
 pub fn parse_state(map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
