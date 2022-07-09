@@ -571,7 +571,7 @@ fn serialize_in_msg(msg: &InMsg, mode: SerializationMode) -> Result<Value> {
             serialize_cell(&mut map, "proof_created", Some(msg.proof_created()), false)?;
             (1, "ihr")
         }
-        InMsg::Immediatelly(msg) => {
+        InMsg::Immediate(msg) => {
             map.insert("in_msg".to_string(), serialize_envelope_msg(&msg.read_envelope_message()?, mode).into());
             serialize_id(&mut map, "transaction_id", Some(&msg.transaction_cell().repr_hash()));
             serialize_grams(&mut map, "fwd_fee", &msg.fwd_fee, mode);
@@ -619,7 +619,7 @@ fn serialize_out_msg(msg: &OutMsg, mode: SerializationMode) -> Result<Value> {
             serialize_id(&mut map, "transaction_id", Some(&msg.transaction_cell().repr_hash()));
             (0, "external")
         }
-        OutMsg::Immediately(msg) => {
+        OutMsg::Immediate(msg) => {
             map.insert("out_msg".to_string(), serialize_envelope_msg(&msg.read_out_message()?, mode).into());
             serialize_id(&mut map, "transaction_id", Some(&msg.transaction_cell().repr_hash()));
             map.insert("reimport".to_string(), serialize_in_msg(&msg.read_reimport_message()?, mode)?);
@@ -635,7 +635,7 @@ fn serialize_out_msg(msg: &OutMsg, mode: SerializationMode) -> Result<Value> {
             map.insert("imported".to_string(), serialize_in_msg(&msg.read_imported()?, mode)?);
             (3, "transit")
         }
-        OutMsg::DequeueImmediately(msg) => {
+        OutMsg::DequeueImmediate(msg) => {
             map.insert("out_msg".to_string(), serialize_envelope_msg(&msg.read_out_message()?, mode).into());
             map.insert("reimport".to_string(), serialize_in_msg(&msg.read_reimport_message()?, mode)?);
             (4, "dequeueImmediately")
