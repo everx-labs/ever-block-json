@@ -833,6 +833,9 @@ fn serialize_validators_set(map: &mut Map<String, Value>, set: &ValidatorSet, mo
         serialize_field(&mut map, "public_key", hex::encode(v.public_key.as_slice()));
         serialize_u64(&mut map, "weight", &v.weight, mode);
         serialize_id(&mut map, "adnl_addr", v.adnl_addr.as_ref());
+        if let Some(bls_public_key) = v.bls_public_key {
+            serialize_field(&mut map, "bls_public_key", hex::encode(bls_public_key));
+        }
         vector.push(map.into());
     };
     serialize_field(map, "list", Value::from(vector));
