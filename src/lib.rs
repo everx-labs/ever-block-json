@@ -19,4 +19,24 @@ pub use self::serialize::*;
 mod deserialize;
 pub use self::deserialize::*;
 
+#[cfg(test)]
+fn check_with_ethalon_file(json: &str, name: &str) {
+    let ethalon = std::fs::read_to_string(format!("real_ton_data/{}-ethalon.json", name))
+        .unwrap();
+    check_with_ethalon(json, &ethalon, name);
+}
 
+#[cfg(test)]
+fn check_with_ethalon(json: &str, ethalon: &str, name: &str) {
+    let ethalon = ethalon.replace("\r", "");
+    let ethalon = if let Some(new_ethalon) = ethalon.strip_suffix("\n") {
+        new_ethalon.to_string()
+    } else {
+        ethalon
+    };
+    if json != ethalon {
+        //assert_eq!(json, ethalon.replace("\r", ""));
+        std::fs::write(format!("real_ton_data/{}.json", name), &json).unwrap();
+        panic!("json != ethalon")
+    }
+}

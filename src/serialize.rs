@@ -2233,3 +2233,6 @@ pub fn db_serialize_remp_status(
     Ok(map)
 }
 
+#[cfg(test)]
+#[path = "tests/test_serialize.rs"]
+mod tests;

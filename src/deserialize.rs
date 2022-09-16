@@ -1022,3 +1022,6 @@ pub fn parse_remp_status(map: &Map<String, Value>)
     Ok((receipt, signature))
 }
 
+#[cfg(test)]
+#[path = "tests/test_deserialize.rs"]
+mod tests;
