@@ -880,7 +880,7 @@ fn serialize_crypto_signature(s: &CryptoSignaturePair) -> Result<Value> {
     Ok(map.into())
 }
 
-fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: SerializationMode) -> Result<Option<Value>> {
+pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: SerializationMode) -> Result<Option<Value>> {
     let mut map = Map::new();
 
     match ConfigParamEnum::construct_from_slice_and_number(param, number)? {
@@ -898,6 +898,9 @@ fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Serial
         },
         ConfigParamEnum::ConfigParam4(ref c) => {
             return Ok(Some(c.dns_root_addr.as_hex_string().into()));
+        },
+        ConfigParamEnum::ConfigParam5(ref c) => {
+            return Ok(Some(c.owner_addr.as_hex_string().into()));
         },
         ConfigParamEnum::ConfigParam6(ref c) => {
             serialize_grams(&mut map, "mint_new_price", &c.mint_new_price, mode);
