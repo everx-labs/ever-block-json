@@ -25,7 +25,7 @@ use ton_block::{
     ConfigParam13, ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
     ConfigParam18Map, ConfigParam2, ConfigParam29, ConfigParam3, ConfigParam31, ConfigParam32,
     ConfigParam33, ConfigParam34, ConfigParam35, ConfigParam36, ConfigParam37, ConfigParam39,
-    ConfigParam4, ConfigParam40, ConfigParam6, ConfigParam7, ConfigParam8, ConfigParam9,
+    ConfigParam4, ConfigParam40, ConfigParam5, ConfigParam6, ConfigParam7, ConfigParam8, ConfigParam9,
     ConfigParamEnum, ConfigParams, ConfigProposalSetup, ConsensusConfig, CryptoSignature,
     CurrencyCollection, DelectorParams, Deserializable, ExtraCurrencyCollection,
     FundamentalSmcAddresses, GasLimitsPrices, GlobalVersion, Grams, HashmapAugType, LibDescr,
@@ -47,7 +47,7 @@ trait ParseJson {
 
 impl ParseJson for Value {
     fn as_uint256(&self) -> Result<UInt256> {
-        UInt256::from_str(self.as_str().ok_or_else(|| error!("field is not str"))?)
+        self.as_str().ok_or_else(|| error!("field is not str"))?.parse()
     }
     fn as_base64(&self) -> Result<Vec<u8>> {
         Ok(base64::decode(self.as_str().ok_or_else(|| error!("field is not str"))?)?)
@@ -56,7 +56,7 @@ impl ParseJson for Value {
         match self.as_i64() {
             Some(v) => Ok(v as i32),
             None => match self.as_str() {
-                Some(s) => Ok(i32::from_str(s)?),
+                Some(s) => Ok(s.parse()?),
                 None => Ok(i32::default())
             }
         }
@@ -65,7 +65,7 @@ impl ParseJson for Value {
         match self.as_u64() {
             Some(v) => Ok(v as u32),
             None => match self.as_str() {
-                Some(s) => Ok(u32::from_str(s)?),
+                Some(s) => Ok(s.parse()?),
                 None => Ok(u32::default())
             }
         }
@@ -83,7 +83,7 @@ impl ParseJson for Value {
         match self.as_u64() {
             Some(v) => Ok(v),
             None => match self.as_str() {
-                Some(s) => Ok(u64::from_str(s)?),
+                Some(s) => Ok(s.parse()?),
                 None => Ok(u64::default())
             }
         }
@@ -140,12 +140,14 @@ impl<'m, 'a> PathMap<'m, 'a> {
             .ok_or_else(|| error!("{}/{} must be the string", self.path.join("/"), name))
     }
     fn get_uint256(&self, name: &'a str) -> Result<UInt256> {
-        UInt256::from_str(self.get_str(name)?)
-            .map_err(|err| error!("{}/{} must be the uint256 in hex format : {}", self.path.join("/"), name, err))
+        self.get_str(name)?.parse()
+            .map_err(|err| error!("{}/{} must be the uint256 in hex format : {}",
+                self.path.join("/"), name, err))
     }
     fn get_base64(&self, name: &'a str) -> Result<Vec<u8>> {
         base64::decode(self.get_str(name)?)
-            .map_err(|err| error!("{}/{} must be the base64 : {}", self.path.join("/"), name, err))
+            .map_err(|err| error!("{}/{} must be the base64 : {}",
+                self.path.join("/"), name, err))
     }
 
     fn get_num(&self, name: &'a str) -> Result<i64> {
@@ -572,6 +574,7 @@ impl StateParser {
         self.parse_uint256(config, 2, |minter_addr | Ok(ConfigParamEnum::ConfigParam2(ConfigParam2 {minter_addr} )))?;
         self.parse_uint256(config, 3, |fee_collector_addr | Ok(ConfigParamEnum::ConfigParam3(ConfigParam3 {fee_collector_addr} )))?;
         self.parse_uint256(config, 4, |dns_root_addr | Ok(ConfigParamEnum::ConfigParam4(ConfigParam4 {dns_root_addr} )))?;
+        self.parse_uint256(config, 5, |owner_addr | Ok(ConfigParamEnum::ConfigParam5(ConfigParam5 {owner_addr} )))?;
 
         self.parse_parameter(config, 6, |value| {
             Ok(ConfigParamEnum::ConfigParam6(ConfigParam6 {
@@ -584,9 +587,14 @@ impl StateParser {
             let mut to_mint = ExtraCurrencyCollection::default();
             p7.iter().try_for_each(|currency| {
                 let currency = PathMap::cont(config, "p7", currency)?;
+                let value = if let Ok(value) = currency.get_str("value_dec") {
+                    value.parse()?
+                } else {
+                    currency.get_str("value")?.parse()?
+                };
                 to_mint.set(
                     &(currency.get_num("currency")? as u32),
-                    &FromStr::from_str(currency.get_str("value")?)?
+                    &value
                 )
             })?;
             Ok(ConfigParamEnum::ConfigParam7(ConfigParam7 {to_mint} ))
@@ -670,7 +678,7 @@ impl StateParser {
                 };
                  
                 list.push(ValidatorDescr::with_params(
-                    FromStr::from_str(p.get_str("public_key")?)?,
+                    p.get_str("public_key")?.parse()?,
                     p.get_num("weight")? as u64,
                     None,
                     bls_public_key,
@@ -881,7 +889,7 @@ pub fn parse_config_with_mandatory_params(config: &Map<String, Value>, mandatori
     if !mandatories.is_empty() {
         parser.mandatory_params = 0;
         for mandatory in mandatories {
-            parser.mandatory_params |= (1 << mandatory) as u64;
+            parser.mandatory_params |= 1u64 << mandatory;
         }
     }
     parser.parse_config(&config)?;
