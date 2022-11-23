@@ -1101,7 +1101,7 @@ pub fn serialize_config(map: &mut Map<String, Value>, config: &ConfigParams, mod
     config.config_params.iterate_slices(|mut num, mut cp_ref| -> Result<bool> {
             //println!("key {}", num);
             let num = num.get_next_u32()?;
-            let mut cp: SliceData = cp_ref.checked_drain_reference()?.into();
+            let mut cp = SliceData::load_cell(cp_ref.checked_drain_reference()?)?;
             if let Some(cp) = serialize_known_config_param(num, &mut cp.clone(), mode)? {
                 known_cp_map.insert(format!("p{}", num), cp);
             } else {
@@ -1306,9 +1306,11 @@ pub fn debug_block(block: Block) -> Result<String> {
 
 pub fn serialize_config_param(config: &ConfigParams, config_number: u32) -> Result<String> {
     let mut master_map = Map::new();
-    if let Some(mut cell) = config.config_params.get(config_number.serialize()?.into())? {
+    let key = SliceData::load_builder(config_number.write_to_new_cell()?)?;
+    if let Some(mut cell) = config.config_params.get(key)? {
         let cp = cell.checked_drain_reference()?;
-        if let Some(cp) = serialize_known_config_param(config_number, &mut cp.into(), SerializationMode::Standart)? {
+        let param = &mut SliceData::load_cell(cp)?;
+        if let Some(cp) = serialize_known_config_param(config_number, param, SerializationMode::Standart)? {
             master_map.insert(format!("p{}", &config_number), cp);
         }
     }
@@ -1710,7 +1712,7 @@ pub fn db_serialize_transaction_ex<'a>(
         if let Some(cell) = slice.reference_opt(0) {
             out_ids.push(cell.repr_hash().as_hex_string());
 
-            let msg = Message::construct_from(&mut cell.into())?;
+            let msg = Message::construct_from_cell(cell)?;
             if let Some(value) = msg.get_value() {
                 balance_delta.sub(&SignedCurrencyCollection::from_cc(value)?);
             }
@@ -2041,9 +2043,9 @@ pub fn db_serialize_block_proof_ex(
     serialize_field(&mut map, "json_version", VERSION);
     serialize_uint256(&mut map, id_str, &proof.proof_for.root_hash);
 
-    let merkle_proof = MerkleProof::construct_from(&mut proof.root.clone().into())?;
+    let merkle_proof = MerkleProof::construct_from_cell(proof.root.clone())?;
     let block_virt_root = merkle_proof.proof.virtualize(1);
-    let virt_block = Block::construct_from(&mut block_virt_root.into())?;
+    let virt_block = Block::construct_from_cell(block_virt_root)?;
     let block_info = virt_block.read_info()?;
 
     map.insert("gen_utime".to_string(), block_info.gen_utime().as_u32().into());
