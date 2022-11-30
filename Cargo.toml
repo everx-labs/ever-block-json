@@ -1,6 +1,6 @@
 [package]
-build = 'build.rs'
-edition = '2018'
+build = 'common/build/build.rs'
+edition = '2021'
 name = 'ton_block_json'
 version = '0.7.70'
 
