@@ -689,6 +689,7 @@ fn serialize_shard_descr(descr: &ShardDescr, mode: SerializationMode) -> Result<
     serialize_field(&mut map, "flags", descr.flags);
     serialize_cc(&mut map, "fees_collected", &descr.fees_collected, mode)?;
     serialize_cc(&mut map, "funds_created", &descr.funds_created, mode)?;
+    serialize_copyleft_rewards(&mut map, "copyleft_rewards", &descr.copyleft_rewards, mode)?;
     match descr.split_merge_at {
         FutureSplitMerge::Split { split_utime, interval } => {
             serialize_field(&mut map, "split_utime", split_utime);
@@ -1249,6 +1250,7 @@ fn serialize_mc_state_extra(map: &mut Map<String, Value>, id_str: &str, master: 
         serialize_block_create_stats(&mut master_map, "block_create_stats", stats, mode)?;
     }
     serialize_cc(&mut master_map, "global_balance", &master.global_balance, mode)?;
+    serialize_copyleft_rewards(&mut master_map, "state_copyleft_rewards", &master.state_copyleft_rewards, mode)?;
     map.insert(id_str.to_string(), master_map.into());
     Ok(())
 }
@@ -1258,6 +1260,19 @@ fn serialize_file_hash(map: &mut Map<String, Value>, file_hash: Option<&UInt256>
         Some(file_hash) => serialize_id(map, "file_hash", Some(file_hash)),
         None => serialize_id(map, "file_hash", Some(&UInt256::calc_file_hash(boc))),
     }
+}
+
+fn serialize_copyleft_rewards(map: &mut Map<String, Value>, id_str: &str, rewards: &CopyleftRewards, mode: SerializationMode) -> Result<()> {
+    let mut rewards_vec = Vec::new();
+    rewards.iterate_with_keys(|ref mut key: SliceData, ref mut value| -> Result<bool> {
+        let mut reward_map = Map::new();
+        reward_map.insert("account".to_owned(), key.as_hex_string().into());
+        serialize_grams(&mut reward_map, "reward", value, mode);
+        rewards_vec.push(reward_map);
+        Ok(true)
+    })?;
+    map.insert(id_str.to_string(), rewards_vec.into());
+    Ok(())
 }
 
 #[derive(Default)]
@@ -1433,6 +1448,7 @@ pub fn db_serialize_block_ex<'a>(
     serialize_cc(&mut value_map, "recovered",      &value_flow.recovered, mode)?;
     serialize_cc(&mut value_map, "created",        &value_flow.created, mode)?;
     serialize_cc(&mut value_map, "minted",         &value_flow.minted, mode)?;
+    serialize_copyleft_rewards(&mut value_map, "copyleft_rewards", &value_flow.copyleft_rewards, mode)?;
     map.insert("value_flow".to_string(), value_map.into());
 
     let state_update = set.block.read_state_update()?;
