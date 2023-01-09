@@ -2,7 +2,7 @@
 build = 'common/build/build.rs'
 edition = '2021'
 name = 'ton_block_json'
-version = '0.7.82'
+version = '0.7.83'
 
 [dependencies]
 base64 = '0.13'
@@ -13,7 +13,7 @@ num-traits = '0.2'
 serde = '1.0'
 serde_derive = '1.0'
 serde_json = { features = [ 'preserve_order' ], version = '1.0' }
-ton_api = { git = 'https://github.com/tonlabs/ton-labs-tl.git', package = 'ton_api', tag = '0.2.166' }
-ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.9.17' }
-ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.12.5' }
+ton_api = { git = 'https://github.com/tonlabs/ton-labs-tl.git', package = 'ton_api', tag = '0.2.167' }
+ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.9.18' }
+ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.12.6' }
 
