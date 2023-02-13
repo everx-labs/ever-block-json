@@ -19,6 +19,8 @@ pub use self::serialize::*;
 mod deserialize;
 pub use self::deserialize::*;
 
+include!("../common/src/info.rs");
+
 #[cfg(test)]
 fn check_with_ethalon_file(json: &str, name: &str) {
     let ethalon = std::fs::read_to_string(format!("real_ton_data/{}-ethalon.json", name))

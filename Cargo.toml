@@ -1,21 +1,21 @@
 [package]
-build = 'build.rs'
-edition = '2018'
+build = 'common/build/build.rs'
+edition = '2021'
 name = 'ton_block_json'
-version = '0.7.46'
+version = '0.7.95'
 
 [dependencies]
 base64 = '0.13'
-failure = '0.1.8'
-hex = '0.4.0'
+failure = '0.1'
+hex = '0.4'
 num = '0.4'
 num-traits = '0.2'
-serde = '1.0.105'
-serde_derive = '1.0.105'
-serde_json = { features = [ 'preserve_order' ], version = '^1.0' }
-ton_api = { git = 'https://github.com/tonlabs/ton-labs-tl.git', package = 'ton_api', branch = 'consensus-updates' }
-ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', branch = 'consensus-updates' }
-ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.4' }
+serde = '1.0'
+serde_derive = '1.0'
+serde_json = { features = [ 'preserve_order' ], version = '1.0' }
+ton_api = { git = 'https://github.com/tonlabs/ever-tl.git', package = 'ton_api', branch = 'consensus-updates' }
+ton_block = { git = 'https://github.com/tonlabs/ever-block.git', branch = 'consensus-updates' }
+ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '1.12.7' }
 
 [dev-dependencies]
-pretty_assertions = '1.2'
+pretty_assertions = '1.3'

@@ -689,6 +689,7 @@ fn serialize_shard_descr(descr: &ShardDescr, mode: SerializationMode) -> Result<
     serialize_field(&mut map, "flags", descr.flags);
     serialize_cc(&mut map, "fees_collected", &descr.fees_collected, mode)?;
     serialize_cc(&mut map, "funds_created", &descr.funds_created, mode)?;
+    serialize_copyleft_rewards(&mut map, "copyleft_rewards", &descr.copyleft_rewards, mode)?;
     match descr.split_merge_at {
         FutureSplitMerge::Split { split_utime, interval } => {
             serialize_field(&mut map, "split_utime", split_utime);
@@ -1104,7 +1105,7 @@ pub fn serialize_config(map: &mut Map<String, Value>, config: &ConfigParams, mod
     config.config_params.iterate_slices(|mut num, mut cp_ref| -> Result<bool> {
             //println!("key {}", num);
             let num = num.get_next_u32()?;
-            let mut cp: SliceData = cp_ref.checked_drain_reference()?.into();
+            let mut cp = SliceData::load_cell(cp_ref.checked_drain_reference()?)?;
             if let Some(cp) = serialize_known_config_param(num, &mut cp.clone(), mode)? {
                 known_cp_map.insert(format!("p{}", num), cp);
             } else {
@@ -1252,6 +1253,7 @@ fn serialize_mc_state_extra(map: &mut Map<String, Value>, id_str: &str, master: 
         serialize_block_create_stats(&mut master_map, "block_create_stats", stats, mode)?;
     }
     serialize_cc(&mut master_map, "global_balance", &master.global_balance, mode)?;
+    serialize_copyleft_rewards(&mut master_map, "state_copyleft_rewards", &master.state_copyleft_rewards, mode)?;
     map.insert(id_str.to_string(), master_map.into());
     Ok(())
 }
@@ -1261,6 +1263,19 @@ fn serialize_file_hash(map: &mut Map<String, Value>, file_hash: Option<&UInt256>
         Some(file_hash) => serialize_id(map, "file_hash", Some(file_hash)),
         None => serialize_id(map, "file_hash", Some(&UInt256::calc_file_hash(boc))),
     }
+}
+
+fn serialize_copyleft_rewards(map: &mut Map<String, Value>, id_str: &str, rewards: &CopyleftRewards, mode: SerializationMode) -> Result<()> {
+    let mut rewards_vec = Vec::new();
+    rewards.iterate_with_keys(|ref mut key: SliceData, ref mut value| -> Result<bool> {
+        let mut reward_map = Map::new();
+        reward_map.insert("account".to_owned(), key.as_hex_string().into());
+        serialize_grams(&mut reward_map, "reward", value, mode);
+        rewards_vec.push(reward_map);
+        Ok(true)
+    })?;
+    map.insert(id_str.to_string(), rewards_vec.into());
+    Ok(())
 }
 
 #[derive(Default)]
@@ -1309,9 +1324,11 @@ pub fn debug_block(block: Block) -> Result<String> {
 
 pub fn serialize_config_param(config: &ConfigParams, config_number: u32) -> Result<String> {
     let mut master_map = Map::new();
-    if let Some(mut cell) = config.config_params.get(config_number.serialize()?.into())? {
+    let key = SliceData::load_builder(config_number.write_to_new_cell()?)?;
+    if let Some(mut cell) = config.config_params.get(key)? {
         let cp = cell.checked_drain_reference()?;
-        if let Some(cp) = serialize_known_config_param(config_number, &mut cp.into(), SerializationMode::Standart)? {
+        let param = &mut SliceData::load_cell(cp)?;
+        if let Some(cp) = serialize_known_config_param(config_number, param, SerializationMode::Standart)? {
             master_map.insert(format!("p{}", &config_number), cp);
         }
     }
@@ -1434,6 +1451,7 @@ pub fn db_serialize_block_ex<'a>(
     serialize_cc(&mut value_map, "recovered",      &value_flow.recovered, mode)?;
     serialize_cc(&mut value_map, "created",        &value_flow.created, mode)?;
     serialize_cc(&mut value_map, "minted",         &value_flow.minted, mode)?;
+    serialize_copyleft_rewards(&mut value_map, "copyleft_rewards", &value_flow.copyleft_rewards, mode)?;
     map.insert("value_flow".to_string(), value_map.into());
 
     let state_update = set.block.read_state_update()?;
@@ -1713,7 +1731,7 @@ pub fn db_serialize_transaction_ex<'a>(
         if let Some(cell) = slice.reference_opt(0) {
             out_ids.push(cell.repr_hash().as_hex_string());
 
-            let msg = Message::construct_from(&mut cell.into())?;
+            let msg = Message::construct_from_cell(cell)?;
             if let Some(value) = msg.get_value() {
                 balance_delta.sub(&SignedCurrencyCollection::from_cc(value)?);
             }
@@ -2044,9 +2062,9 @@ pub fn db_serialize_block_proof_ex(
     serialize_field(&mut map, "json_version", VERSION);
     serialize_uint256(&mut map, id_str, &proof.proof_for.root_hash);
 
-    let merkle_proof = MerkleProof::construct_from(&mut proof.root.clone().into())?;
+    let merkle_proof = MerkleProof::construct_from_cell(proof.root.clone())?;
     let block_virt_root = merkle_proof.proof.virtualize(1);
-    let virt_block = Block::construct_from(&mut block_virt_root.into())?;
+    let virt_block = Block::construct_from_cell(block_virt_root)?;
     let block_info = virt_block.read_info()?;
 
     map.insert("gen_utime".to_string(), block_info.gen_utime().as_u32().into());
