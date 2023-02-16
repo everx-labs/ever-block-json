@@ -671,6 +671,7 @@ impl StateParser {
             p34.get_vec("list").and_then(|p| p.iter().try_for_each::<_, Result<()>>(|p| {
                 let p = PathMap::cont(&config, "p34", p)?;
                 let bls_public_key = if let Ok(bls_public_key) = p.get_str("bls_public_key") {
+                    assert!(bls_public_key.len() == 96, "Invalid BLS public key length");
                     let bls_public_key = hex::decode(bls_public_key)?;
                     Some(bls_public_key.as_slice().try_into()?)
                 } else { 
