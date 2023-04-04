@@ -33,7 +33,7 @@ use ton_block::{
     ValidatorKeys, ValidatorSet, ValidatorSignedTempKey, ValidatorTempKey, WorkchainDescr,
     WorkchainFormat, WorkchainFormat0, WorkchainFormat1, Workchains, MASTERCHAIN_ID, SHARD_FULL,
 };
-use ton_types::{deserialize_tree_of_cells, error, fail, Result, UInt256};
+use ton_types::{error, fail, Result, UInt256, read_single_root_boc};
 
 trait ParseJson {
     fn as_uint256(&self) -> Result<UInt256>;
@@ -604,7 +604,7 @@ impl StateParser {
         self.parse_p12(config)?;
 
         self.parse_parameter(config, 13, |p13| {
-            let cell = deserialize_tree_of_cells(&mut std::io::Cursor::new(p13.get_base64("boc")?))?;
+            let cell = read_single_root_boc(&p13.get_base64("boc")?)?;
             Ok(ConfigParamEnum::ConfigParam13(ConfigParam13 { cell }))
         })?;
         self.parse_parameter(config, 14, |p14| {
@@ -852,7 +852,7 @@ impl StateParser {
                 let library = PathMap::cont(&map_path, "libraries", library)?;
                 let id = library.get_uint256("hash")?;
                 let lib = library.get_base64("lib")?;
-                let lib = deserialize_tree_of_cells(&mut std::io::Cursor::new(lib))?;
+                let lib = read_single_root_boc(&lib)?;
                 let mut lib = LibDescr::new(lib);
                 let publishers = library.get_vec("publishers")?;
                 publishers.iter().try_for_each::<_, Result<()>>(|publisher| {

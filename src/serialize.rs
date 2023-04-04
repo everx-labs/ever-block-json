@@ -16,17 +16,14 @@
 
 use ton_block::*;
 use ton_types::{
-    Result, fail, BuilderData,
-    {AccountId, Cell, SliceData},
-    cells_serialization::{deserialize_tree_of_cells, serialize_toc},
-    dictionary::HashmapType,
-    types::UInt256,
+    Result, fail, BuilderData, AccountId, Cell, SliceData, HashmapType, UInt256, write_boc, 
+    read_single_root_boc,
 };
 use ton_api::ton::ton_node::{RempMessageLevel, RempMessageStatus, RempReceipt};
 use num::BigInt;
 use num_traits::sign::Signed;
 use serde_json::{Map, Value};
-use std::{collections::HashMap, io::Cursor};
+use std::collections::HashMap;
 
 const VERSION: u32 = 8;
 // Version changes
@@ -271,7 +268,7 @@ fn serialize_cell(
     write_hash: bool,
 ) -> Result<()> {
     if let Some(cell) = cell {
-        let bytes = serialize_toc(cell)?;
+        let bytes = write_boc(cell)?;
         serialize_field(map, id_str, base64::encode(&bytes));
         if write_hash {
             let string = id_str.to_owned() + "_hash";
@@ -289,7 +286,7 @@ fn serialize_slice(
 ) -> Result<()> {
     if let Some(slice) = slice {
         let cell = slice.clone().into_cell();
-        let bytes = serialize_toc(&cell)?;
+        let bytes = write_boc(&cell)?;
         serialize_field(map, id_str, base64::encode(&bytes));
         if write_hash {
             let string = id_str.to_owned() + "_hash";
@@ -930,7 +927,7 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
             return Ok(Some(serialize_workchains(&c.workchains)?)); 
         },
         ConfigParamEnum::ConfigParam13(ref c) => {
-            let boc = serialize_toc(&c.cell)?;
+            let boc = write_boc(&c.cell)?;
             serialize_field(&mut map, "boc", base64::encode(&boc));
         },
         ConfigParamEnum::ConfigParam14(ref c) => {
@@ -1150,13 +1147,13 @@ fn serialize_shard_accounts(map: &mut Map<String, Value>, id_str: &str, shard_ac
         if account.init_code_hash().is_some() {
             let mut builder = BuilderData::new();
             account.write_original_format(&mut builder)?;
-            boc1 = Some(serialize_toc(&builder.into_cell()?)?);
+            boc1 = Some(write_boc(&builder.into_cell()?)?);
         }
 
         let account_set = AccountSerializationSet {
             account,
             prev_account_state: None,
-            boc: serialize_toc(&value.account_cell())?,
+            boc: write_boc(&value.account_cell())?,
             boc1,
             proof: None,
         };
@@ -1182,7 +1179,7 @@ fn serialize_libraries(map: &mut Map<String, Value>, id_str: &str, libraries: &L
         libraries_vec.push(serde_json::json!({
             "hash": key.as_hex_string(),
             "publishers": publishers,
-            "lib": base64::encode(&serialize_toc(value.lib())?)
+            "lib": base64::encode(&write_boc(value.lib())?)
         }));
         Ok(true)
     })?;
@@ -2111,7 +2108,7 @@ pub fn db_serialize_shard_state_ex(id_str: &'static str, set: &ShardStateSeriali
     let mut map = Map::new();
     serialize_field(&mut map, "json_version", VERSION);
     serialize_field(&mut map, id_str, set.id.as_str());
-    let cell = deserialize_tree_of_cells(&mut Cursor::new(set.boc.as_slice()))?;
+    let cell = read_single_root_boc(set.boc.as_slice())?;
     serialize_id(&mut map, "root_hash", Some(&cell.repr_hash()));
     serialize_file_hash(&mut map, None, &set.boc);
     serialize_id(&mut map, "block_id", set.block_id.as_ref());
