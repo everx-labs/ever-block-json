@@ -1,10 +1,7 @@
-# Changelog
+# Release Notes
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.7.47
+## Version 0.7.109
 
-### New
-
-
-
+- Supported ever-types version 2.0
