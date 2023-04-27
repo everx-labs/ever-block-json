@@ -357,13 +357,15 @@ fn serialize_compute_phase<'a>(map: &mut Map<String, Value>, ph: Option<&'a TrCo
                 ComputeSkipReason::NoState => 0,
                 ComputeSkipReason::BadState => 1,
                 ComputeSkipReason::NoGas   => 2,
+                ComputeSkipReason::Suspended => 5,
             };
             ph_map.insert("skipped_reason".to_string(), reason.into());
             if mode.is_q_server() {
                 let reason = match ph.reason {
-                    ComputeSkipReason::NoState  => "noState",
+                    ComputeSkipReason::NoState => "noState",
                     ComputeSkipReason::BadState => "badState",
-                    ComputeSkipReason::NoGas    => "noGas",
+                    ComputeSkipReason::NoGas => "noGas",
+                    ComputeSkipReason::Suspended => "suspended",
                 };
                 ph_map.insert("skipped_reason_name".to_string(), reason.into());
             }
