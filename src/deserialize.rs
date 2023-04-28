@@ -20,7 +20,7 @@ use ton_api::ton::ton_node::{rempmessagestatus, RempMessageLevel, RempMessageSta
 use ton_api::IntoBoxed;
 use ton_block::{
     Account, Augmentation, BlockCreateFees, BlockIdExt, BlockLimits, CatchainConfig,
-    ConfigCopyleft, ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12,
+    ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12,
     ConfigParam13, ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
     ConfigParam18Map, ConfigParam2, ConfigParam29, ConfigParam3, ConfigParam31, ConfigParam32,
     ConfigParam33, ConfigParam34, ConfigParam35, ConfigParam36, ConfigParam37, ConfigParam39,
@@ -155,7 +155,7 @@ impl<'m, 'a> PathMap<'m, 'a> {
                 return Ok(v);
             }
         }
-        if let Ok(value) = self.get_item(&*(name.to_string() + "_dec")) {
+        if let Ok(value) = self.get_item(&(name.to_string() + "_dec")) {
             if let Some(v) = value.as_str() {
                 return i64::from_str(v).map_err(|err| {
                     error!(
@@ -196,7 +196,7 @@ impl<'m, 'a> PathMap<'m, 'a> {
                 return Ok(v.into());
             }
         }
-        if let Ok(value) = self.get_item(&*(name.to_string() + "_dec")) {
+        if let Ok(value) = self.get_item(&(name.to_string() + "_dec")) {
             if let Some(v) = value.as_str() {
                 return Grams::from_str(v).map_err(|err| {
                     error!(
@@ -535,7 +535,7 @@ impl StateParser {
         let mut list = Vec::default();
         config.get_vec("list").and_then(|p| {
             p.iter().try_for_each::<_, Result<_>>(|p| {
-                let p = PathMap::cont(&config, "p", p)?;
+                let p = PathMap::cont(config, "p", p)?;
                 let public_key = hex::decode(p.get_str("public_key")?)?;
                 let weight = p.get_num("weight")? as u64;
                 let adnl_addr = if let Ok(adnl_addr) = p.get_uint256("adnl_addr") {
@@ -545,7 +545,7 @@ impl StateParser {
                 };
 
                 let descr = ValidatorDescr::with_params(
-                    SigPubKey::from_bytes(&*public_key)?,
+                    SigPubKey::from_bytes(&public_key)?,
                     weight,
                     adnl_addr,
                 );
@@ -604,7 +604,7 @@ impl StateParser {
         self.parse_p12(config)?;
 
         self.parse_parameter(config, 13, |p13| {
-            let cell = read_single_root_boc(&p13.get_base64("boc")?)?;
+            let cell = read_single_root_boc(p13.get_base64("boc")?)?;
             Ok(ConfigParamEnum::ConfigParam13(ConfigParam13 { cell }))
         })?;
         self.parse_parameter(config, 14, |p14| {
@@ -686,7 +686,7 @@ impl StateParser {
             let mut validator_keys = ValidatorKeys::default();
 
             p39.iter().try_for_each::<_, Result<()>>(|p| {
-                let p = PathMap::cont(&config, "p39", p)?;
+                let p = PathMap::cont(config, "p39", p)?;
 
                 let key = p.get_uint256("map_key")?;
                 let adnl_addr = p.get_uint256("adnl_addr")?;
@@ -698,11 +698,11 @@ impl StateParser {
 
                 let pk = ValidatorTempKey::with_params(
                     adnl_addr,
-                    SigPubKey::from_bytes(&*temp_public_key)?,
+                    SigPubKey::from_bytes(&temp_public_key)?,
                     seqno,
                     valid_until,
                 );
-                let sk = CryptoSignature::from_r_s(&*signature_r, &*signature_s)?;
+                let sk = CryptoSignature::from_r_s(&signature_r, &signature_s)?;
                 validator_keys.set(&key, &ValidatorSignedTempKey::with_key_and_signature(pk, sk))?;
                 Ok(())
             })?;
@@ -724,11 +724,13 @@ impl StateParser {
         self.extra.config.set_config(ConfigParamEnum::ConfigParam40(ConfigParam40 {slashing_config}))?;
 
         self.parse_parameter(config, 42, |p42| {
-            let mut copyleft_config = ConfigCopyleft::default();
-            copyleft_config.copyleft_reward_threshold = p42.get_grams("threshold")?;
+            let mut copyleft_config = ton_block::ConfigCopyleft { 
+                copyleft_reward_threshold: p42.get_grams("threshold")?,
+                ..Default::default() 
+            };
             p42.get_vec("payouts").and_then(|p| {
                 p.iter().try_for_each::<_, Result<()>>(|p| {
-                    let p = PathMap::cont(&config, "p42", p)?;
+                    let p = PathMap::cont(config, "p42", p)?;
                     let mut license_type = 0;
                     p.get_u32("license_type", &mut license_type);
                     let mut percent = 0;
@@ -852,7 +854,7 @@ impl StateParser {
                 let library = PathMap::cont(&map_path, "libraries", library)?;
                 let id = library.get_uint256("hash")?;
                 let lib = library.get_base64("lib")?;
-                let lib = read_single_root_boc(&lib)?;
+                let lib = read_single_root_boc(lib)?;
                 let mut lib = LibDescr::new(lib);
                 let publishers = library.get_vec("publishers")?;
                 publishers.iter().try_for_each::<_, Result<()>>(|publisher| {
