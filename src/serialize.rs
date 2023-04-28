@@ -142,7 +142,7 @@ pub fn block_order(block: &Block, mc_seq_no: u32) -> Result<String> {
     let info = block.read_info()?;
     let master_order = u64_to_string(mc_seq_no as u64);
     if !info.shard().is_masterchain() {
-        let mut workchain_order = u64_to_string(info.shard().workchain_id().abs() as u64);
+        let mut workchain_order = u64_to_string(info.shard().workchain_id().unsigned_abs() as u64);
         if info.shard().workchain_id() < 0 {
             workchain_order = format!("-{}", workchain_order);
         }
@@ -252,7 +252,7 @@ pub fn shard_to_string(value: u64) -> String {
 }
 
 fn construct_address(workchain_id: i32, account_id: AccountId) -> Result<MsgAddressInt> {
-    if workchain_id <= 127 && workchain_id >= -128 
+    if (-128..=127).contains(&workchain_id)
         && account_id.remaining_bits() == STD_ACCOUNT_ID_LENGTH
     {
         MsgAddressInt::with_standart(None, workchain_id as i8, account_id)
@@ -269,7 +269,7 @@ fn serialize_cell(
 ) -> Result<()> {
     if let Some(cell) = cell {
         let bytes = write_boc(cell)?;
-        serialize_field(map, id_str, base64::encode(&bytes));
+        serialize_field(map, id_str, base64::encode(bytes));
         if write_hash {
             let string = id_str.to_owned() + "_hash";
             serialize_uint256(map, &string, &cell.repr_hash())
@@ -287,7 +287,7 @@ fn serialize_slice(
     if let Some(slice) = slice {
         let cell = slice.clone().into_cell();
         let bytes = write_boc(&cell)?;
-        serialize_field(map, id_str, base64::encode(&bytes));
+        serialize_field(map, id_str, base64::encode(bytes));
         if write_hash {
             let string = id_str.to_owned() + "_hash";
             serialize_uint256(map, &string, &cell.repr_hash())
@@ -354,13 +354,15 @@ fn serialize_compute_phase<'a>(map: &mut Map<String, Value>, ph: Option<&'a TrCo
                 ComputeSkipReason::NoState => 0,
                 ComputeSkipReason::BadState => 1,
                 ComputeSkipReason::NoGas   => 2,
+                ComputeSkipReason::Suspended => 5,
             };
             ph_map.insert("skipped_reason".to_string(), reason.into());
             if mode.is_q_server() {
                 let reason = match ph.reason {
-                    ComputeSkipReason::NoState  => "noState",
+                    ComputeSkipReason::NoState => "noState",
                     ComputeSkipReason::BadState => "badState",
-                    ComputeSkipReason::NoGas    => "noGas",
+                    ComputeSkipReason::NoGas => "noGas",
+                    ComputeSkipReason::Suspended => "suspended",
                 };
                 ph_map.insert("skipped_reason_name".to_string(), reason.into());
             }
@@ -928,7 +930,7 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         },
         ConfigParamEnum::ConfigParam13(ref c) => {
             let boc = write_boc(&c.cell)?;
-            serialize_field(&mut map, "boc", base64::encode(&boc));
+            serialize_field(&mut map, "boc", base64::encode(boc));
         },
         ConfigParamEnum::ConfigParam14(ref c) => {
             serialize_grams(&mut map, "masterchain_block_fee", 
@@ -1179,7 +1181,7 @@ fn serialize_libraries(map: &mut Map<String, Value>, id_str: &str, libraries: &L
         libraries_vec.push(serde_json::json!({
             "hash": key.as_hex_string(),
             "publishers": publishers,
-            "lib": base64::encode(&write_boc(value.lib())?)
+            "lib": base64::encode(write_boc(value.lib())?)
         }));
         Ok(true)
     })?;
@@ -1391,7 +1393,7 @@ pub fn db_serialize_block_ex<'a>(
             BlockProcessingStatus::Refused => "refused",
         });
     }
-    map.insert("boc".to_string(), base64::encode(&set.boc).into());
+    map.insert("boc".to_string(), base64::encode(set.boc).into());
     map.insert("global_id".to_string(), set.block.global_id.into());
     let block_info = set.block.read_info()?;
     map.insert("version".to_string(), block_info.version().into());
@@ -1609,9 +1611,9 @@ pub fn db_serialize_transaction_ex<'a>(
     serialize_id(&mut map, id_str, Some(set.id));
     serialize_id(&mut map, "block_id", set.block_id);
     if let Some(proof) = &set.proof {
-        serialize_field(&mut map, "proof", base64::encode(&proof));
+        serialize_field(&mut map, "proof", base64::encode(proof));
     }
-    serialize_field(&mut map, "boc", base64::encode(&set.boc));
+    serialize_field(&mut map, "boc", base64::encode(set.boc));
     serialize_field(&mut map, "status", set.status as u8);
     if mode.is_q_server() {
         serialize_field(&mut map, "status_name", match set.status {
@@ -1862,7 +1864,7 @@ pub fn db_serialize_account_ex(
         AccountStatus::AccStateNonexist => ton_types::fail!("Attempt to call serde::Serialize::serialize for AccountNone")
     };
     if let Some(proof) = &set.proof {
-        serialize_field(&mut map, "proof", base64::encode(&proof));
+        serialize_field(&mut map, "proof", base64::encode(proof));
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
     if let Some(prev_state) = &set.prev_account_state {
@@ -1940,7 +1942,7 @@ pub fn db_serialize_message_ex(id_str: &'static str, set: &MessageSerializationS
     //serialize_id(&mut map, "block_id", set.block_id.as_ref()); 
     serialize_id(&mut map, "transaction_id", set.transaction_id.as_ref());
     if let Some(proof) = &set.proof {
-        serialize_field(&mut map, "proof", base64::encode(&proof));
+        serialize_field(&mut map, "proof", base64::encode(proof));
     }
     serialize_field(&mut map, "boc", base64::encode(&set.boc));
     serialize_field(&mut map, "status", set.status as u8);
