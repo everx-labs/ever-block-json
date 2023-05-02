@@ -28,10 +28,11 @@ use ton_block::{
     ConfigParamEnum, ConfigParams, ConfigProposalSetup, ConsensusConfig, CryptoSignature,
     CurrencyCollection, DelectorParams, Deserializable, ExtraCurrencyCollection,
     FundamentalSmcAddresses, GasLimitsPrices, GlobalVersion, Grams, HashmapAugType, LibDescr,
-    MandatoryParams, McStateExtra, MsgForwardPrices, ParamLimits, Serializable, ShardAccount,
-    ShardIdent, ShardStateUnsplit, SigPubKey, SlashingConfig, StoragePrices, ValidatorDescr,
-    ValidatorKeys, ValidatorSet, ValidatorSignedTempKey, ValidatorTempKey, WorkchainDescr,
-    WorkchainFormat, WorkchainFormat0, WorkchainFormat1, Workchains, MASTERCHAIN_ID, SHARD_FULL,
+    MandatoryParams, McStateExtra, MsgAddressInt, MsgForwardPrices, ParamLimits, Serializable,
+    ShardAccount, ShardIdent, ShardStateUnsplit, SigPubKey, SlashingConfig, StoragePrices,
+    SuspendedAddresses, ValidatorDescr, ValidatorKeys, ValidatorSet, ValidatorSignedTempKey,
+    ValidatorTempKey, WorkchainDescr, WorkchainFormat, WorkchainFormat0, WorkchainFormat1,
+    Workchains, MASTERCHAIN_ID, SHARD_FULL,
 };
 use ton_types::{error, fail, Result, UInt256, read_single_root_boc};
 
@@ -740,6 +741,22 @@ impl StateParser {
                 })
             })?;
             Ok(ConfigParamEnum::ConfigParam42(copyleft_config))
+        })?;
+
+        self.parse_array(config, 44, |p44| {
+            let mut suspended = SuspendedAddresses::new();
+
+            for address in p44 {
+                let address: MsgAddressInt = address
+                    .as_str()
+                    .ok_or_else(|| error!("address must be string"))?.parse()?;
+                suspended.add_suspended_address(
+                    address.get_workchain_id(),
+                    UInt256::construct_from(&mut address.address())?
+                )?;
+            }
+
+            Ok(ConfigParamEnum::ConfigParam44(suspended))
         })?;
 
         Ok(())
