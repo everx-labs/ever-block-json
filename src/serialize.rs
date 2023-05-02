@@ -871,6 +871,15 @@ fn serialize_copyleft_param(map: &mut Map<String, Value>, copyleft: &ConfigCopyl
     Ok(())
 }
 
+fn serialize_suspended_addresses(sa: &SuspendedAddresses) -> Result<Value> {
+    let mut vector: Vec<Value> = Vec::new();
+    sa.iterate_keys(|a: SuspendedAddressesKey| -> Result<bool> {
+        vector.push(format!("{}:{}", a.workchain_id, a.address.as_hex_string()).into());
+        Ok(true)
+    })?;
+    Ok(vector.into())
+}
+
 fn serialize_crypto_signature(s: &CryptoSignaturePair) -> Result<Value> {
     let mut map = Map::new();
     serialize_uint256(&mut map, "node_id", &s.node_id_short);
@@ -1036,6 +1045,9 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         },
         ConfigParamEnum::ConfigParam42(ref c) => {
             serialize_copyleft_param(&mut map, c, mode)?;
+        },
+        ConfigParamEnum::ConfigParam44(ref c) => {
+            return Ok(Some(serialize_suspended_addresses(c)?));
         }
         _ => {
             return Ok(None)
