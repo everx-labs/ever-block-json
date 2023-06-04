@@ -2113,7 +2113,6 @@ pub struct ShardStateSerializationSet {
     pub boc: Vec<u8>,
 }
 
-
 pub fn db_serialize_shard_state(id_str: &'static str, set: &ShardStateSerializationSet) -> Result<Map<String, Value>> {
     db_serialize_shard_state_ex(id_str, set, SerializationMode::Standart)
 }
