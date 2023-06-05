@@ -20,4 +20,3 @@ mod deserialize;
 pub use self::deserialize::*;
 
 include!("../common/src/info.rs");
-
