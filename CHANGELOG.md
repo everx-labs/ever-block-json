@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.7.170
+
+- Pruned cells are not serialized to BOC, only hash is written
+
 ## Version 0.7.120
 
 - Parse config parameter 44
