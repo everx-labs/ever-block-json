@@ -268,8 +268,10 @@ fn serialize_cell(
     write_hash: bool,
 ) -> Result<()> {
     if let Some(cell) = cell {
-        let bytes = write_boc(cell)?;
-        serialize_field(map, id_str, base64::encode(bytes));
+        if !cell.is_pruned() {
+            let bytes = write_boc(cell)?;
+            serialize_field(map, id_str, base64::encode(bytes));
+        }
         if write_hash {
             let string = id_str.to_owned() + "_hash";
             serialize_uint256(map, &string, &cell.repr_hash())
