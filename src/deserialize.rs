@@ -1033,3 +1033,53 @@ pub fn parse_remp_status(map: &Map<String, Value>)
     Ok((receipt, signature))
 }
 
+pub fn parse_block_proof(
+    map: &Map<String, Value>, block_file_hash: UInt256
+) -> Result<ton_block::BlockProof> {
+
+    let map_path = PathMap::new(map);
+
+    let root = ton_types::read_single_root_boc(base64::decode(map_path.get_str("proof")?)?)?;
+
+    let merkle_proof = ton_block::MerkleProof::construct_from_cell(root.clone())?;
+    let block_virt_root = merkle_proof.proof.virtualize(1);
+    let virt_block = ton_block::Block::construct_from_cell(block_virt_root.clone())?;
+    let block_info = virt_block.read_info()?;
+
+    let proof_for = BlockIdExt::with_params(
+        ton_block::ShardIdent::with_tagged_prefix(
+            block_info.shard().workchain_id(),
+            block_info.shard().shard_prefix_with_tag(),
+        )?,
+        block_info.seq_no(),
+        block_virt_root.repr_hash(),
+        block_file_hash,
+    );
+
+    let signatures = if let Ok(signatures) = map_path.get_vec("signatures") {
+        let mut pure_signatures = ton_block::BlockSignaturesPure::new();
+        pure_signatures.set_weight(map_path.get_num("sig_weight")? as u64);
+        for signature in signatures {
+            let signature = PathMap::cont(&map_path, "signatures", signature)?;
+            pure_signatures.add_sigpair(ton_block::CryptoSignaturePair { 
+                node_id_short: signature.get_uint256("node_id")?,
+                sign: ton_block::CryptoSignature::from_r_s(
+                    signature.get_uint256("r")?.as_slice(),
+                    signature.get_uint256("s")?.as_slice(),
+                )?
+            });
+        }
+        Some(ton_block::BlockSignatures::with_params(
+            ton_block::ValidatorBaseInfo::with_params(
+                map_path.get_num("validator_list_hash_short")? as u32,
+                map_path.get_num("catchain_seqno")? as u32,
+            ),
+            pure_signatures
+        ))
+    } else {
+        None
+    };
+
+    Ok(ton_block::BlockProof::with_params(proof_for, root, signatures))
+}
+
