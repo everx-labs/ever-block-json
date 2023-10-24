@@ -16,7 +16,7 @@
 
 use ton_block::*;
 use ton_types::{
-    Result, fail, BuilderData, AccountId, Cell, SliceData, HashmapType, UInt256, write_boc, 
+    Result, fail, BuilderData, AccountId, Cell, SliceData, HashmapType, UInt256, write_boc,
     read_single_root_boc,
 };
 use ton_api::ton::ton_node::{RempMessageLevel, RempMessageStatus, RempReceipt};
@@ -931,22 +931,22 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
             return Ok(Some(serialize_mandatory_params(&c.critical_params)?));
         },
         ConfigParamEnum::ConfigParam11(ref c) => {
-            serialize_field(&mut map, "normal_params", 
+            serialize_field(&mut map, "normal_params",
                 serialize_config_proposal_setup(&c.read_normal_params()?)?);
-            serialize_field(&mut map, "critical_params", 
+            serialize_field(&mut map, "critical_params",
                 serialize_config_proposal_setup(&c.read_critical_params()?)?);
         },
         ConfigParamEnum::ConfigParam12(ref c) => {
-            return Ok(Some(serialize_workchains(&c.workchains)?)); 
+            return Ok(Some(serialize_workchains(&c.workchains)?));
         },
         ConfigParamEnum::ConfigParam13(ref c) => {
             let boc = write_boc(&c.cell)?;
             serialize_field(&mut map, "boc", base64::encode(boc));
         },
         ConfigParamEnum::ConfigParam14(ref c) => {
-            serialize_grams(&mut map, "masterchain_block_fee", 
+            serialize_grams(&mut map, "masterchain_block_fee",
                 &c.block_create_fees.masterchain_block_fee, mode);
-            serialize_grams(&mut map, "basechain_block_fee", 
+            serialize_grams(&mut map, "basechain_block_fee",
                 &c.block_create_fees.basechain_block_fee, mode);
         },
         ConfigParamEnum::ConfigParam15(ref c) => {
@@ -1168,7 +1168,7 @@ fn serialize_shard_accounts(map: &mut Map<String, Value>, id_str: &str, shard_ac
 
         let account_set = AccountSerializationSet {
             account,
-            prev_account_state: None,
+            prev_code_hash: None,
             boc: write_boc(&value.account_cell())?,
             boc1,
             proof: None,
@@ -1725,7 +1725,7 @@ pub fn db_serialize_transaction_ex<'a>(
         if let Some(value) = msg.get_value() {
             balance_delta.add(&SignedCurrencyCollection::from_cc(value)?);
         }
-        // IHR fee is added to account balance if IHR is not used or to total fees if message 
+        // IHR fee is added to account balance if IHR is not used or to total fees if message
         // delivered through IHR
         if let Some((ihr_fee, _)) = get_msg_fees(&msg) {
             balance_delta.grams += ihr_fee.as_u128();
@@ -1776,9 +1776,9 @@ pub fn db_serialize_transaction_ex<'a>(
 }
 
 fn serialize_account_status(
-    map: &mut Map<String, Value>, 
-    name: &'static str, 
-    status: &AccountStatus, 
+    map: &mut Map<String, Value>,
+    name: &'static str,
+    status: &AccountStatus,
     mode: SerializationMode
 ) {
     serialize_field(map, name, match status {
@@ -1802,7 +1802,7 @@ fn serialize_account_status(
 #[derive(Default)]
 pub struct AccountSerializationSet {
     pub account: Account,
-    pub prev_account_state: Option<Account>,
+    pub prev_code_hash: Option<UInt256>,
     pub boc: Vec<u8>,
     pub boc1: Option<Vec<u8>>,
     pub proof: Option<Vec<u8>>,
@@ -1811,7 +1811,7 @@ pub struct AccountSerializationSet {
 pub fn debug_account(account: Account) -> Result<String> {
     let set = AccountSerializationSet {
         account,
-        prev_account_state: None,
+        prev_code_hash: None,
         boc: Vec::new(),
         boc1: None,
         proof: None,
@@ -1821,15 +1821,15 @@ pub fn debug_account(account: Account) -> Result<String> {
 }
 
 pub fn db_serialize_account(
-    id_str: &'static str, 
+    id_str: &'static str,
     set: &AccountSerializationSet
 ) -> Result<Map<String, Value>> {
     db_serialize_account_ex(id_str, set, SerializationMode::Standart)
 }
 
 pub fn db_serialize_account_ex(
-    id_str: &'static str, 
-    set: &AccountSerializationSet, 
+    id_str: &'static str,
+    set: &AccountSerializationSet,
     mode: SerializationMode
 ) -> Result<Map<String, Value>> {
     let mut map = Map::new();
@@ -1875,22 +1875,20 @@ pub fn db_serialize_account_ex(
         AccountStatus::AccStateUninit => {
 
         }
-        AccountStatus::AccStateNonexist => ton_types::fail!("Attempt to call serde::Serialize::serialize for AccountNone")
+        AccountStatus::AccStateNonexist => fail!("Attempt to call serde::Serialize::serialize for AccountNone")
     };
     if let Some(proof) = &set.proof {
         serialize_field(&mut map, "proof", base64::encode(proof));
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
-    if let Some(prev_state) = &set.prev_account_state {
-        serialize_id(&mut map, "prev_code_hash", prev_state.get_code().map(|cell| cell.repr_hash()).as_ref());
-    }
+    serialize_id(&mut map, "prev_code_hash", (&set.prev_code_hash).as_ref());
     Ok(map)
 }
 
 #[derive(Default)]
 pub struct DeletedAccountSerializationSet {
     pub account_id: AccountId,
-    pub prev_account_state: Option<Account>,
+    pub prev_code_hash: Option<UInt256>,
     pub workchain_id: i32
 }
 
@@ -1909,9 +1907,7 @@ pub fn db_serialize_deleted_account_ex(
     serialize_field(&mut map, id_str, address.to_string());
     serialize_field(&mut map, "workchain_id", set.workchain_id);
     serialize_account_status(&mut map, "acc_type", &AccountStatus::AccStateNonexist, mode);
-    if let Some(prev_state) = &set.prev_account_state {
-        serialize_id(&mut map, "prev_code_hash", prev_state.get_code().map(|cell| cell.repr_hash()).as_ref());
-    }
+    serialize_id(&mut map, "prev_code_hash", (&set.prev_code_hash).as_ref());
 
     Ok(map)
 }
@@ -1953,7 +1949,7 @@ pub fn db_serialize_message_ex(id_str: &'static str, set: &MessageSerializationS
     serialize_field(&mut map, "json_version", VERSION);
     serialize_id(&mut map, id_str, Some(&set.id));
     // isn't needed there - because message should be fully immutable from source block to destination one
-    //serialize_id(&mut map, "block_id", set.block_id.as_ref()); 
+    //serialize_id(&mut map, "block_id", set.block_id.as_ref());
     serialize_id(&mut map, "transaction_id", set.transaction_id.as_ref());
     if let Some(proof) = &set.proof {
         serialize_field(&mut map, "proof", base64::encode(proof));
@@ -2102,7 +2098,7 @@ pub fn db_serialize_block_proof_ex(
            }
        )?;
        serialize_field(&mut map, "signatures", signs);
-    } 
+    }
     Ok(map)
 }
 

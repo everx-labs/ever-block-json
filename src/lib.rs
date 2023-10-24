@@ -16,7 +16,10 @@
 
 mod serialize;
 pub use self::serialize::*;
+mod block_parser;
 mod deserialize;
+
 pub use self::deserialize::*;
+pub use block_parser::*;
 
 include!("../common/src/info.rs");
