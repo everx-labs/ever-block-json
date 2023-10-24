@@ -2,12 +2,15 @@
 build = 'common/build/build.rs'
 edition = '2021'
 name = 'ton_block_json'
-version = '0.7.187'
+version = '0.7.188'
 
 [dependencies]
 base64 = '0.13'
 failure = '0.1'
 hex = '0.4'
+lazy_static = '1.4.0'
+log = '^0.4'
+metrics = '0.21.0'
 num = '0.4'
 num-traits = '0.2'
 serde = '1.0'
