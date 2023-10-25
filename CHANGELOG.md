@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.7.189
+
+### Fixed
+
+- Block parser: parsing was failed if block had empty shard state update.
+- Block parser: optimized deserialization accounts from merkle update.  
+
 ## Version 0.7.188
 
 - Added block parser – implements common block parsing strategy (with accounts, transactions, messages etc.).
