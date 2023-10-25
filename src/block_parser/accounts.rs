@@ -5,10 +5,7 @@ use crate::{
     ParsingBlock,
 };
 use std::collections::{HashMap, HashSet};
-use ton_block::{
-    Account, ChildCell, Deserializable, OutMsgQueueInfo, Serializable, ShardAccounts, ShardIdent,
-    Transaction,
-};
+use ton_block::{Account, ChildCell, Serializable, ShardAccounts, Transaction};
 use ton_types::{fail, AccountId, Cell, ExceptionCode, SliceData, UInt256};
 use ton_types::{write_boc, BuilderData, Result};
 
@@ -27,62 +24,45 @@ pub(crate) struct ParserAccounts<'a, R: JsonReducer> {
     deleted: HashSet<AccountId>,
     last_trans_chain_order: HashMap<AccountId, String>,
     last_trans_lt: HashMap<AccountId, u64>,
-    old: ShardAccounts,
-    new: ShardAccounts,
+    update: Option<(ShardAccounts, ShardAccounts)>,
 }
 
-#[derive(Default)]
-struct ShardStateUnsplitData {
-    global_id: i32,
-    shard_id: ShardIdent,
-    seq_no: u32,
-    vert_seq_no: u32,
-    gen_time: u32,
-    gen_time_tail_ms: u16,
-    gen_lt: u64,
-    min_ref_mc_seqno: u32,
-    out_msg_queue_info: ChildCell<OutMsgQueueInfo>,
-    before_split: bool,
-    accounts: ChildCell<ShardAccounts>,
-}
-
-impl ShardStateUnsplitData {
-    fn read_accounts(cell: Cell) -> Result<ShardAccounts> {
-        const SHARD_STATE_UNSPLIT_PFX: u32 = 0x9023afe2;
-        const SHARD_STATE_UNSPLIT_PFX_2: u32 = 0x9023aeee;
-        let mut cell = SliceData::load_cell(cell)?;
-        let cell = &mut cell;
-        let tag = cell.get_next_u32()?;
-        if tag != SHARD_STATE_UNSPLIT_PFX && tag != SHARD_STATE_UNSPLIT_PFX_2 {
-            Err(ton_block::BlockError::InvalidConstructorTag {
-                t: tag,
-                s: "ShardStateUnsplit".to_string(),
-            })?;
-        }
-        let mut data = Self::default();
-        data.global_id.read_from(cell)?;
-        data.shard_id.read_from(cell)?;
-        data.seq_no.read_from(cell)?;
-        data.vert_seq_no.read_from(cell)?;
-        data.gen_time.read_from(cell)?;
-        if tag == SHARD_STATE_UNSPLIT_PFX_2 {
-            data.gen_time_tail_ms.read_from(cell)?;
-        }
-        data.gen_lt.read_from(cell)?;
-        data.min_ref_mc_seqno.read_from(cell)?;
-        data.out_msg_queue_info.read_from_reference(cell)?;
-        data.before_split = cell.get_next_bit()?;
-        data.accounts.read_from_reference(cell)?;
-
-        data.accounts.read_struct()
+fn read_accounts(cell: Cell) -> Result<ShardAccounts> {
+    const SHARD_STATE_UNSPLIT_PFX: u32 = 0x9023afe2;
+    const SHARD_STATE_UNSPLIT_PFX_2: u32 = 0x9023aeee;
+    let mut cell = SliceData::load_cell(cell)?;
+    let cell = &mut cell;
+    let tag = cell.get_next_u32()?;
+    if tag != SHARD_STATE_UNSPLIT_PFX && tag != SHARD_STATE_UNSPLIT_PFX_2 {
+        Err(ton_block::BlockError::InvalidConstructorTag {
+            t: tag,
+            s: "ShardStateUnsplit".to_string(),
+        })?;
     }
+    // out_msg_queue_info
+    cell.checked_drain_reference()?;
+
+    let mut accounts = ChildCell::<ShardAccounts>::default();
+    accounts.read_from_reference(cell)?;
+    accounts.read_struct()
+}
+
+enum UpdateSide {
+    Old,
+    New,
 }
 
 impl<'a, R: JsonReducer> ParserAccounts<'a, R> {
     pub(crate) fn new(config: &'a BlockParserConfig<R>, parsing: &'a ParsingBlock) -> Result<Self> {
         let state_update = parsing.block.state_update.read_struct()?;
-        let old = ShardStateUnsplitData::read_accounts(state_update.old)?;
-        let new = ShardStateUnsplitData::read_accounts(state_update.new)?;
+        let updates = if state_update.old_hash != state_update.new_hash {
+            Some((
+                read_accounts(state_update.old)?,
+                read_accounts(state_update.new)?,
+            ))
+        } else {
+            None
+        };
         Ok(Self {
             parsing,
             max_account_bytes_size: config.max_account_bytes_size,
@@ -92,8 +72,7 @@ impl<'a, R: JsonReducer> ParserAccounts<'a, R> {
             deleted: HashSet::new(),
             last_trans_chain_order: HashMap::new(),
             last_trans_lt: HashMap::new(),
-            old,
-            new,
+            update: updates,
         })
     }
 
@@ -119,7 +98,7 @@ impl<'a, R: JsonReducer> ParserAccounts<'a, R> {
             let last_trans_chain_order = self.last_trans_chain_order.remove(account_id);
             result.accounts.push(Self::prepare_account_entry(
                 acc,
-                Self::get_code_hash_from(&self.old, account_id)?,
+                self.get_code_hash_from(UpdateSide::Old, account_id)?,
                 last_trans_chain_order,
                 self.max_account_bytes_size,
                 self.accounts_sharding_depth,
@@ -133,7 +112,7 @@ impl<'a, R: JsonReducer> ParserAccounts<'a, R> {
             result.accounts.push(self.prepare_deleted_account_entry(
                 account_id.clone(),
                 workchain_id,
-                Self::get_code_hash_from(&self.old, account_id)?,
+                self.get_code_hash_from(UpdateSide::Old, account_id)?,
                 last_trans_chain_order,
                 last_trans_lt,
             )?);
@@ -185,9 +164,9 @@ impl<'a, R: JsonReducer> ParserAccounts<'a, R> {
 
     pub(crate) fn get_code_hash(&self, account_id: &AccountId) -> Result<Option<String>> {
         Ok(
-            if let Some(hash) = Self::get_code_hash_from(&self.old, account_id)? {
+            if let Some(hash) = self.get_code_hash_from(UpdateSide::Old, account_id)? {
                 Some(hash.to_hex_string())
-            } else if let Some(hash) = Self::get_code_hash_from(&self.new, account_id)? {
+            } else if let Some(hash) = self.get_code_hash_from(UpdateSide::New, account_id)? {
                 Some(hash.to_hex_string())
             } else {
                 None
@@ -195,8 +174,18 @@ impl<'a, R: JsonReducer> ParserAccounts<'a, R> {
         )
     }
 
-    fn get_code_hash_from(accounts: &ShardAccounts, id: &AccountId) -> Result<Option<UInt256>> {
-        let acc = accounts.account(id);
+    fn get_code_hash_from(&self, source: UpdateSide, id: &AccountId) -> Result<Option<UInt256>> {
+        let acc = if let Some(updates) = &self.update {
+            let accounts = match source {
+                UpdateSide::Old => &updates.0,
+                UpdateSide::New => &updates.1,
+            };
+            accounts.account(id)
+        } else if let Some(state) = self.parsing.shard_state {
+            state.read_accounts()?.account(id)
+        } else {
+            Ok(None)
+        };
         if let Err(err) = &acc {
             if let Some(ExceptionCode::PrunedCellAccess) = err.downcast_ref::<ExceptionCode>() {
                 return Ok(None);
