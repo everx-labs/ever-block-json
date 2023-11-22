@@ -18,6 +18,7 @@ use serde_json::{Map, Value};
 use std::str::FromStr;
 use ton_api::ton::ton_node::{rempmessagestatus, RempMessageLevel, RempMessageStatus, RempReceipt};
 use ton_api::IntoBoxed;
+use std::convert::TryInto;
 use ton_block::{
     Account, Augmentation, BlockCreateFees, BlockIdExt, BlockLimits, CatchainConfig,
     ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12,
@@ -544,11 +545,18 @@ impl StateParser {
                 } else {
                     None
                 };
+                let bls_public_key = if let Ok(bls_public_key) = p.get_str("bls_public_key") {
+                    let bls_public_key = hex::decode(bls_public_key)?;
+                    Some(bls_public_key.as_slice().try_into()?)
+                } else { 
+                    None 
+                };
 
                 let descr = ValidatorDescr::with_params(
                     SigPubKey::from_bytes(&public_key)?,
                     weight,
                     adnl_addr,
+                    bls_public_key
                 );
                 list.push(descr);
 
@@ -662,11 +670,22 @@ impl StateParser {
         self.parse_parameter(config, 34, |p34| {
             let mut list = vec![];
             p34.get_vec("list").and_then(|p| p.iter().try_for_each::<_, Result<()>>(|p| {
-                let p = PathMap::cont(config, "p34", p)?;
+                let p = PathMap::cont(&config, "p34", p)?;
+                let bls_public_key = if let Ok(bls_public_key) = p.get_str("bls_public_key") {
+                    if bls_public_key.len() != 96 {
+                        fail!("Invalid BLS public key length {}", bls_public_key.len());
+                    }
+                    let bls_public_key = hex::decode(bls_public_key)?;
+                    Some(bls_public_key.as_slice().try_into()?)
+                } else {
+                    None
+                };
+
                 list.push(ValidatorDescr::with_params(
                     p.get_str("public_key")?.parse()?,
                     p.get_num("weight")? as u64,
-                    None
+                    None,
+                    bls_public_key,
                 ));
                 Ok(())
             }))?;
