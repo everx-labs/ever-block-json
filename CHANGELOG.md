@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.7.196
+
+- BLS structures support
+
 ## Version 0.7.189
 
 ### Fixed
@@ -11,7 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ## Version 0.7.188
 
-- Added block parser – implements common block parsing strategy (with accounts, transactions, messages etc.).
+- Added block parser  implements common block parsing strategy (with accounts, transactions, messages etc.).
   It is a generalized parsing algorithm based on three sources (ever-node, parser-service, evernode-se). 
 
 ## Version 0.7.179
