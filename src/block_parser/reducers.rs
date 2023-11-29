@@ -131,3 +131,6 @@ impl JsonFieldsReducer {
     }
 }
 
+#[cfg(test)]
+#[path = "../tests/test_reducers.rs"]
+mod tests;

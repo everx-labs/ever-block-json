@@ -1102,3 +1102,6 @@ pub fn parse_block_proof(
     Ok(ton_block::BlockProof::with_params(proof_for, root, signatures))
 }
 
+#[cfg(test)]
+#[path = "tests/test_deserialize.rs"]
+mod tests;
