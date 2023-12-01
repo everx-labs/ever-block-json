@@ -286,3 +286,6 @@ fn get_block_partition(sharding_depth: u32, block_id: &BlockIdExt) -> Option<u32
     }
 }
 
+#[cfg(test)]
+#[path = "../tests/test_parser.rs"]
+mod tests;
