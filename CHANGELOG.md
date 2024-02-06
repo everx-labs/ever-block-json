@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.7.212
+
+- README file added
+
 ## Version 0.7.196
 
 - BLS structures support
