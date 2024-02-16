@@ -20,20 +20,7 @@ use ton_api::ton::ton_node::{rempmessagestatus, RempMessageLevel, RempMessageSta
 use ton_api::IntoBoxed;
 use std::convert::TryInto;
 use ton_block::{
-    Account, Augmentation, BlockCreateFees, BlockIdExt, BlockLimits, CatchainConfig,
-    ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12,
-    ConfigParam13, ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
-    ConfigParam18Map, ConfigParam2, ConfigParam29, ConfigParam3, ConfigParam31, ConfigParam32,
-    ConfigParam33, ConfigParam34, ConfigParam35, ConfigParam36, ConfigParam37, ConfigParam39,
-    ConfigParam4, ConfigParam40, ConfigParam5, ConfigParam6, ConfigParam7, ConfigParam8, ConfigParam9,
-    ConfigParamEnum, ConfigParams, ConfigProposalSetup, ConsensusConfig, CryptoSignature,
-    CurrencyCollection, DelectorParams, Deserializable, ExtraCurrencyCollection,
-    FundamentalSmcAddresses, GasLimitsPrices, GlobalVersion, Grams, HashmapAugType, LibDescr,
-    MandatoryParams, McStateExtra, MsgAddressInt, MsgForwardPrices, ParamLimits, Serializable,
-    ShardAccount, ShardIdent, ShardStateUnsplit, SigPubKey, SlashingConfig, StoragePrices,
-    SuspendedAddresses, ValidatorDescr, ValidatorKeys, ValidatorSet, ValidatorSignedTempKey,
-    ValidatorTempKey, WorkchainDescr, WorkchainFormat, WorkchainFormat0, WorkchainFormat1,
-    Workchains, MASTERCHAIN_ID, SHARD_FULL,
+    Account, Augmentation, BlockCreateFees, BlockIdExt, BlockLimits, CatchainConfig, ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12, ConfigParam13, ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18, ConfigParam18Map, ConfigParam2, ConfigParam29, ConfigParam3, ConfigParam31, ConfigParam32, ConfigParam33, ConfigParam34, ConfigParam35, ConfigParam36, ConfigParam37, ConfigParam39, ConfigParam4, ConfigParam40, ConfigParam5, ConfigParam6, ConfigParam7, ConfigParam8, ConfigParam9, ConfigParamEnum, ConfigParams, ConfigProposalSetup, ConnectedNwConfig, ConsensusConfig, CryptoSignature, CurrencyCollection, DelectorParams, Deserializable, ExtraCurrencyCollection, FundamentalSmcAddresses, GasLimitsPrices, GlobalVersion, Grams, HashmapAugType, LibDescr, MandatoryParams, McStateExtra, MeshConfig, MsgAddressInt, MsgForwardPrices, ParamLimits, Serializable, ShardAccount, ShardIdent, ShardStateUnsplit, SigPubKey, SlashingConfig, StoragePrices, SuspendedAddresses, ValidatorDescr, ValidatorKeys, ValidatorSet, ValidatorSignedTempKey, ValidatorTempKey, WorkchainDescr, WorkchainFormat, WorkchainFormat0, WorkchainFormat1, Workchains, MASTERCHAIN_ID, SHARD_FULL
 };
 use ton_types::{error, fail, Result, UInt256, read_single_root_boc};
 
@@ -425,6 +412,36 @@ impl StateParser {
         })
     }
 
+    fn parse_mesh_config(&mut self, config: &PathMap) -> Result<()> {
+        self.parse_array(config, 58, |p58| {
+            let mut map = MeshConfig::default();
+            p58.iter().try_for_each::<_, Result<_>>(|value| {
+                let p = PathMap::cont(config, "p58", value)?;
+                let nw_id = p.get_num("network_id")? as i32;
+                let mut hardforks = vec!();
+                if let Ok(vector) = p.get_vec("hardforks") {
+                    for hf in vector {
+                        let p = PathMap::cont(&p, "hardforks", hf)?;
+                        hardforks.push(parse_separated_block_id_ext(&p)?);
+                    }
+                }
+                let nw_cfg = ConnectedNwConfig {
+                    zerostate: parse_separated_block_id_ext(&p.get_obj("zerostate")?)?,
+                    is_active: p.get_bool("is_active")?,
+                    currency_id: p.get_num("currency_id")? as u32,
+                    init_block: parse_separated_block_id_ext(&p.get_obj("init_block")?)?,
+                    emergency_guard_addr: p.get_uint256("emergency_guard_addr")?,
+                    pull_addr: p.get_uint256("pull_addr")?,
+                    minter_addr: p.get_uint256("minter_addr")?,
+                    hardforks
+                };
+                map.set(&nw_id, &nw_cfg)?;
+                Ok(())
+            })?;
+            Ok(ConfigParamEnum::ConfigParam58(map))
+        })
+    }
+
     fn parse_param_set(&mut self, config: &PathMap) -> Result<()> {
         if let Some(mandatory_params) = self.parse_param_set_params(config, 9)? {
             self.extra.config.set_config(ConfigParamEnum::ConfigParam9(ConfigParam9 {mandatory_params} ))?;
@@ -778,6 +795,8 @@ impl StateParser {
             Ok(ConfigParamEnum::ConfigParam44(suspended))
         })?;
 
+        self.parse_mesh_config(config)?;     // p58
+
         Ok(())
     }
 
@@ -949,6 +968,18 @@ fn parse_block_id_ext(map_path: &PathMap, mc: bool) -> Result<BlockIdExt> {
             map_path.get_uint256("block_file_hash")?,
         ))
     }
+}
+
+fn parse_separated_block_id_ext(map_path: &PathMap) -> Result<BlockIdExt> {
+    Ok(BlockIdExt::with_params(
+        ton_block::ShardIdent::with_tagged_prefix(
+            map_path.get_num("wc")? as i32,
+            u64::from_str_radix(map_path.get_str("shard")?, 16)?
+        )?,
+        map_path.get_num("seqno")? as u32,
+        map_path.get_uint256("root_hash")?,
+        map_path.get_uint256("file_hash")?,
+    ))
 }
 
 pub fn parse_remp_status(map: &Map<String, Value>)

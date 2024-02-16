@@ -1817,3 +1817,54 @@ fn test_se_deserialise_remp_sent() {
 fn test_se_deserialise_remp_timeout() {
     se_deserialise_remp_status(RempMessageStatus::TonNode_RempTimeout);
 }
+
+#[test]
+fn test_se_deserialise_mesh_config() {
+
+    let mut mesh_config = MeshConfig::default();
+    for i in 0..5 {
+        let mut hardforks = vec!();
+        for hf in 0..i {
+            hardforks.push(BlockIdExt { 
+                shard_id: ShardIdent::masterchain(),
+                seq_no: hf * 1000000,
+                root_hash: UInt256::rand(),
+                file_hash: UInt256::rand()
+            });
+        }
+        let nw_cfg = ConnectedNwConfig {
+            zerostate: BlockIdExt { 
+                shard_id: ShardIdent::masterchain(),
+                seq_no: 0,
+                root_hash: UInt256::rand(),
+                file_hash: UInt256::rand()
+            },
+            is_active: true,
+            currency_id: i * 10,
+            init_block:  BlockIdExt { 
+                shard_id: ShardIdent::masterchain(),
+                seq_no: 123456,
+                root_hash: UInt256::rand(),
+                file_hash: UInt256::rand()
+            },
+            emergency_guard_addr: UInt256::rand(),
+            pull_addr: UInt256::rand(),
+            minter_addr: UInt256::rand(),
+            hardforks
+        };
+        mesh_config.set(&i, &nw_cfg).unwrap();
+    }
+
+    let json = serde_json::to_string_pretty(
+        &serde_json::json!({
+            "p58": serialize_mesh_config(&mesh_config).unwrap()
+        })
+    ).unwrap();
+    println!("{}", json);
+
+    let map = serde_json::from_str::<Map<String, Value>>(&json).unwrap();
+    let config_params = crate::deserialize::parse_config(&map).unwrap();
+
+    assert_eq!(mesh_config, config_params.mesh_config().unwrap().unwrap());
+}
+

@@ -853,7 +853,7 @@ fn serialize_validator_signed_temp_keys(stk: &ValidatorKeys) -> Result<Value> {
         serialize_field(&mut map, "temp_public_key", hex::encode(val.key().temp_public_key().key_bytes()));
         serialize_field(&mut map, "seqno", val.key().seqno());
         serialize_field(&mut map, "valid_until", val.key().valid_until());
-        let (r, s) = val.signature().to_r_s_bytes();
+        let (r, s) = val.signature().as_r_s_bytes();
         serialize_field(&mut map, "signature_r", hex::encode(r));
         serialize_field(&mut map, "signature_s", hex::encode(s));
         vector.push(Value::from(map));
@@ -885,10 +885,35 @@ fn serialize_suspended_addresses(sa: &SuspendedAddresses) -> Result<Value> {
     Ok(vector.into())
 }
 
+fn serialize_mesh_config(mc: &MeshConfig) -> Result<Value> {
+    let mut vector = Vec::new();
+    mc.iterate_with_keys(|k: i32, v| {
+        let mut map = Map::new();
+        serialize_field(&mut map, "network_id", k);
+        serialize_field(&mut map, "zerostate", serialize_separated_block_id_ext(&v.zerostate)?);
+        serialize_field(&mut map, "is_active", v.is_active);
+        serialize_field(&mut map, "currency_id", v.currency_id);
+        serialize_field(&mut map, "init_block", serialize_separated_block_id_ext(&v.init_block)?);
+        serialize_uint256(&mut map, "emergency_guard_addr", &v.emergency_guard_addr);
+        serialize_uint256(&mut map, "pull_addr", &v.pull_addr);
+        serialize_uint256(&mut map, "minter_addr", &v.minter_addr);
+        if !v.hardforks.is_empty() {
+            let mut hardforks: Vec<Value> = Vec::new();
+            for hf in &v.hardforks {
+                hardforks.push(serialize_separated_block_id_ext(hf)?)
+            }
+            serialize_field(&mut map, "hardforks", hardforks);
+        }
+        vector.push(map);
+        Ok(true)
+    })?;
+    Ok(vector.into())
+}
+
 fn serialize_crypto_signature(s: &CryptoSignaturePair) -> Result<Value> {
     let mut map = Map::new();
     serialize_uint256(&mut map, "node_id", &s.node_id_short);
-    let (r, s) = s.sign.to_r_s_bytes();
+    let (r, s) = s.sign.as_r_s_bytes();
     serialize_field(&mut map, "r", hex::encode(r));
     serialize_field(&mut map, "s", hex::encode(s));
     Ok(map.into())
@@ -1053,7 +1078,10 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         },
         ConfigParamEnum::ConfigParam44(ref c) => {
             return Ok(Some(serialize_suspended_addresses(c)?));
-        }
+        },
+        ConfigParamEnum::ConfigParam58(ref c) => {
+            return Ok(Some(serialize_mesh_config(c)?));
+        },
         _ => {
             return Ok(None)
         },
@@ -2195,6 +2223,16 @@ fn serialize_block_id_ext(map: &mut Map<String, Value>, id: &BlockIdExt, mc: boo
         serialize_field(map, "shard", id.shard().shard_prefix_as_str_with_tag());
         serialize_field(map, "wc", id.shard().workchain_id());
     }
+}
+
+fn serialize_separated_block_id_ext(id: &BlockIdExt) -> Result<Value>{
+    let mut map = Map::new();
+    serialize_field(&mut map, "wc", id.shard().workchain_id());
+    serialize_field(&mut map, "shard", id.shard().shard_prefix_as_str_with_tag());
+    serialize_field(&mut map, "seqno", id.seq_no());
+    serialize_uint256(&mut map, "root_hash", id.root_hash());
+    serialize_uint256(&mut map, "file_hash", id.file_hash());
+    Ok(map.into())
 }
 
 pub fn db_serialize_remp_status(
