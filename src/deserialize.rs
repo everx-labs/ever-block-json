@@ -730,8 +730,8 @@ impl StateParser {
                 let temp_public_key = hex::decode(p.get_str("temp_public_key")?)?;
                 let seqno = p.get_num("seqno")? as u32;
                 let valid_until = p.get_num("valid_until")? as u32;
-                let signature_r = hex::decode(p.get_str("signature_r")?)?;
-                let signature_s = hex::decode(p.get_str("signature_s")?)?;
+                let signature_r = p.get_str("signature_r")?;
+                let signature_s = p.get_str("signature_s")?;
 
                 let pk = ValidatorTempKey::with_params(
                     adnl_addr,
@@ -739,7 +739,7 @@ impl StateParser {
                     seqno,
                     valid_until,
                 );
-                let sk = CryptoSignature::from_r_s(&signature_r, &signature_s)?;
+                let sk = CryptoSignature::from_r_s_str(&signature_r, &signature_s)?;
                 validator_keys.set(&key, &ValidatorSignedTempKey::with_key_and_signature(pk, sk))?;
                 Ok(())
             })?;
@@ -1113,9 +1113,9 @@ pub fn parse_block_proof(
             let signature = PathMap::cont(&map_path, "signatures", signature)?;
             pure_signatures.add_sigpair(ton_block::CryptoSignaturePair { 
                 node_id_short: signature.get_uint256("node_id")?,
-                sign: ton_block::CryptoSignature::from_r_s(
-                    signature.get_uint256("r")?.as_slice(),
-                    signature.get_uint256("s")?.as_slice(),
+                sign: ton_block::CryptoSignature::from_r_s_str(
+                    signature.get_str("r")?,
+                    signature.get_str("s")?,
                 )?
             });
         }
