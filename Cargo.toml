@@ -2,7 +2,7 @@
 build = 'common/build/build.rs'
 edition = '2021'
 name = 'ton_block_json'
-version = '0.7.217'
+version = '0.7.218'
 
 [dependencies]
 base64 = '0.13'
@@ -16,9 +16,9 @@ num-traits = '0.2'
 serde = '1.0'
 serde_derive = '1.0'
 serde_json = { features = [ 'preserve_order' ], version = '1.0' }
-ton_api = { git = 'https://github.com/tonlabs/ever-tl.git', package = 'ton_api', tag = '0.3.64' }
-ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.128' }
-ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '2.0.34' }
+ton_api = { git = 'https://github.com/tonlabs/ever-tl.git', package = 'ton_api', tag = '0.3.65' }
+ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.129' }
+ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '2.0.35' }
 
 [dev-dependencies]
 pretty_assertions = '1.3'
