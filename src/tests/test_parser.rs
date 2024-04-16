@@ -21,8 +21,8 @@ use crate::{NoTrace, ParsedBlock};
 use serde_json::Map;
 use std::collections::HashMap;
 use std::{fs::read, path::Path};
-use ton_block::{Block, GetRepresentationHash, InMsg, OutMsg};
-use ton_types::{read_single_root_boc, UInt256};
+use ever_block::{Block, GetRepresentationHash, InMsg, OutMsg};
+use ever_block::{read_single_root_boc, UInt256};
 
 #[derive(Default)]
 pub struct ParseOptions {

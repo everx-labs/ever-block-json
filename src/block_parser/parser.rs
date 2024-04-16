@@ -8,11 +8,11 @@ use crate::block_parser::{
 use crate::JsonReducer;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use ton_block::{
+use ever_block::{
     Account, AccountBlock, AccountStatus, BlockIdExt, BlockProcessingStatus, BlockProof,
     Deserializable, HashmapAugType, Transaction,
 };
-use ton_types::{fail, HashmapType, Result, SliceData, UInt256};
+use ever_block::{fail, HashmapType, Result, SliceData, UInt256};
 
 pub struct EntryConfig<R: JsonReducer> {
     pub sharding_depth: Option<u32>,

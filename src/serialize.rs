@@ -1,24 +1,20 @@
 /*
- * Copyright (C) 2019-2022 TON Labs. All Rights Reserved.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.  You may obtain a copy of the
  * License at:
  *
- * https://www.ton.dev/licenses
+ * https://www.ever.dev/licenses
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and limitations
+ * See the License for the specific EVERX DEV software governing permissions and limitations
  * under the License.
  */
 
-use ton_block::*;
-use ton_types::{
-    Result, fail, BuilderData, AccountId, Cell, SliceData, HashmapType, UInt256, write_boc,
-    read_single_root_boc,
-};
+use ever_block::*;
 use ton_api::ton::ton_node::{RempMessageLevel, RempMessageStatus, RempReceipt};
 use num::BigInt;
 use num_traits::sign::Signed;
@@ -853,7 +849,7 @@ fn serialize_validator_signed_temp_keys(stk: &ValidatorKeys) -> Result<Value> {
         serialize_field(&mut map, "temp_public_key", hex::encode(val.key().temp_public_key().key_bytes()));
         serialize_field(&mut map, "seqno", val.key().seqno());
         serialize_field(&mut map, "valid_until", val.key().valid_until());
-        let (r, s) = val.signature().to_r_s_bytes();
+        let (r, s) = val.signature().as_r_s_bytes();
         serialize_field(&mut map, "signature_r", hex::encode(r));
         serialize_field(&mut map, "signature_s", hex::encode(s));
         vector.push(Value::from(map));
@@ -888,7 +884,7 @@ fn serialize_suspended_addresses(sa: &SuspendedAddresses) -> Result<Value> {
 fn serialize_crypto_signature(s: &CryptoSignaturePair) -> Result<Value> {
     let mut map = Map::new();
     serialize_uint256(&mut map, "node_id", &s.node_id_short);
-    let (r, s) = s.sign.to_r_s_bytes();
+    let (r, s) = s.sign.as_r_s_bytes();
     serialize_field(&mut map, "r", hex::encode(r));
     serialize_field(&mut map, "s", hex::encode(s));
     Ok(map.into())
