@@ -1,25 +1,26 @@
 /*
- * Copyright (C) 2019-2022 TON Labs. All Rights Reserved.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.  You may obtain a copy of the
  * License at:
  *
- * https://www.ton.dev/licenses
+ * https://www.ever.dev/licenses
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and limitations
+ * See the License for the specific EVERX DEV software governing permissions and limitations
  * under the License.
  */
 
 use serde_json::{Map, Value};
-use std::str::FromStr;
-use ton_api::ton::ton_node::{rempmessagestatus, RempMessageLevel, RempMessageStatus, RempReceipt};
-use ton_api::IntoBoxed;
-use std::convert::TryInto;
-use ton_block::{
+use std::{str::FromStr, convert::TryInto};
+use ton_api::{
+    ton::ton_node::{rempmessagestatus, RempMessageLevel, RempMessageStatus, RempReceipt},
+    IntoBoxed
+};
+use ever_block::{
     Account, Augmentation, BlockCreateFees, BlockIdExt, BlockLimits, CatchainConfig,
     ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12,
     ConfigParam13, ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
@@ -35,7 +36,7 @@ use ton_block::{
     ValidatorTempKey, WorkchainDescr, WorkchainFormat, WorkchainFormat0, WorkchainFormat1,
     Workchains, MASTERCHAIN_ID, SHARD_FULL,
 };
-use ton_types::{error, fail, Result, UInt256, read_single_root_boc};
+use ever_block::{error, fail, Result, UInt256, read_single_root_boc};
 
 trait ParseJson {
     fn as_uint256(&self) -> Result<UInt256>;
@@ -713,8 +714,8 @@ impl StateParser {
                 let temp_public_key = hex::decode(p.get_str("temp_public_key")?)?;
                 let seqno = p.get_num("seqno")? as u32;
                 let valid_until = p.get_num("valid_until")? as u32;
-                let signature_r = hex::decode(p.get_str("signature_r")?)?;
-                let signature_s = hex::decode(p.get_str("signature_s")?)?;
+                let signature_r = p.get_str("signature_r")?;
+                let signature_s = p.get_str("signature_s")?;
 
                 let pk = ValidatorTempKey::with_params(
                     adnl_addr,
@@ -722,7 +723,7 @@ impl StateParser {
                     seqno,
                     valid_until,
                 );
-                let sk = CryptoSignature::from_r_s(&signature_r, &signature_s)?;
+                let sk = CryptoSignature::from_r_s_str(&signature_r, &signature_s)?;
                 validator_keys.set(&key, &ValidatorSignedTempKey::with_key_and_signature(pk, sk))?;
                 Ok(())
             })?;
@@ -744,7 +745,7 @@ impl StateParser {
         self.extra.config.set_config(ConfigParamEnum::ConfigParam40(ConfigParam40 {slashing_config}))?;
 
         self.parse_parameter(config, 42, |p42| {
-            let mut copyleft_config = ton_block::ConfigCopyleft { 
+            let mut copyleft_config = ever_block::ConfigCopyleft { 
                 copyleft_reward_threshold: p42.get_grams("threshold")?,
                 ..Default::default() 
             };
@@ -933,14 +934,14 @@ pub fn parse_state_unchecked(map: &Map<String, Value>) -> Result<ShardStateUnspl
 fn parse_block_id_ext(map_path: &PathMap, mc: bool) -> Result<BlockIdExt> {
     if mc {
         Ok(BlockIdExt::with_params(
-            ton_block::ShardIdent::with_tagged_prefix(MASTERCHAIN_ID, SHARD_FULL)?,
+            ever_block::ShardIdent::with_tagged_prefix(MASTERCHAIN_ID, SHARD_FULL)?,
             map_path.get_num("mc_block_seqno")? as u32,
             map_path.get_uint256("mc_block_id")?,
             map_path.get_uint256("mc_block_file_hash")?,
         ))
     } else {
         Ok(BlockIdExt::with_params(
-            ton_block::ShardIdent::with_tagged_prefix(
+            ever_block::ShardIdent::with_tagged_prefix(
                 map_path.get_num("wc")? as i32,
                 u64::from_str_radix(map_path.get_str("shard")?, 16)?
             )?,
@@ -1054,19 +1055,19 @@ pub fn parse_remp_status(map: &Map<String, Value>)
 
 pub fn parse_block_proof(
     map: &Map<String, Value>, block_file_hash: UInt256
-) -> Result<ton_block::BlockProof> {
+) -> Result<ever_block::BlockProof> {
 
     let map_path = PathMap::new(map);
 
-    let root = ton_types::read_single_root_boc(base64::decode(map_path.get_str("proof")?)?)?;
+    let root = ever_block::read_single_root_boc(base64::decode(map_path.get_str("proof")?)?)?;
 
-    let merkle_proof = ton_block::MerkleProof::construct_from_cell(root.clone())?;
+    let merkle_proof = ever_block::MerkleProof::construct_from_cell(root.clone())?;
     let block_virt_root = merkle_proof.proof.virtualize(1);
-    let virt_block = ton_block::Block::construct_from_cell(block_virt_root.clone())?;
+    let virt_block = ever_block::Block::construct_from_cell(block_virt_root.clone())?;
     let block_info = virt_block.read_info()?;
 
     let proof_for = BlockIdExt::with_params(
-        ton_block::ShardIdent::with_tagged_prefix(
+        ever_block::ShardIdent::with_tagged_prefix(
             block_info.shard().workchain_id(),
             block_info.shard().shard_prefix_with_tag(),
         )?,
@@ -1076,20 +1077,20 @@ pub fn parse_block_proof(
     );
 
     let signatures = if let Ok(signatures) = map_path.get_vec("signatures") {
-        let mut pure_signatures = ton_block::BlockSignaturesPure::new();
+        let mut pure_signatures = ever_block::BlockSignaturesPure::new();
         pure_signatures.set_weight(map_path.get_num("sig_weight")? as u64);
         for signature in signatures {
             let signature = PathMap::cont(&map_path, "signatures", signature)?;
-            pure_signatures.add_sigpair(ton_block::CryptoSignaturePair { 
+            pure_signatures.add_sigpair(ever_block::CryptoSignaturePair { 
                 node_id_short: signature.get_uint256("node_id")?,
-                sign: ton_block::CryptoSignature::from_r_s(
-                    signature.get_uint256("r")?.as_slice(),
-                    signature.get_uint256("s")?.as_slice(),
+                sign: ever_block::CryptoSignature::from_r_s_str(
+                    signature.get_str("r")?,
+                    signature.get_str("s")?,
                 )?
             });
         }
-        Some(ton_block::BlockSignatures::with_params(
-            ton_block::ValidatorBaseInfo::with_params(
+        Some(ever_block::BlockSignatures::with_params(
+            ever_block::ValidatorBaseInfo::with_params(
                 map_path.get_num("validator_list_hash_short")? as u32,
                 map_path.get_num("catchain_seqno")? as u32,
             ),
@@ -1099,7 +1100,7 @@ pub fn parse_block_proof(
         None
     };
 
-    Ok(ton_block::BlockProof::with_params(proof_for, root, signatures))
+    Ok(ever_block::BlockProof::with_params(proof_for, root, signatures))
 }
 
 #[cfg(test)]
