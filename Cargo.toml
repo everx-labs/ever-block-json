@@ -16,8 +16,8 @@ num-traits = '0.2'
 serde = '1.0'
 serde_derive = '1.0'
 serde_json = { features = [ 'preserve_order' ], version = '1.0' }
-ever_block = { git = 'ssh://git@github.com/everx-labs/ever-block-private.git', tag = '1.10.0' }
-ton_api = { git = 'ssh://git@github.com/everx-labs/ever-tl-private.git', package = 'ton_api', tag = '0.3.76' }
+ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.10.0' }
+ton_api = { git = 'https://github.com/everx-labs/ever-tl.git', package = 'ton_api', tag = '0.3.76' }
 
 [dev-dependencies]
 pretty_assertions = '1.3'
