@@ -7,8 +7,8 @@ mod reducers;
 
 use serde_json::{Map, Value};
 use std::time::{Duration, SystemTime};
-use ton_block::{MsgAddrStd, MsgAddressInt};
-use ton_types::{Result, SliceData, UInt256};
+use ever_block::{MsgAddrStd, MsgAddressInt};
+use ever_block::{Result, SliceData, UInt256};
 
 pub use block::{ParsedBlock, ParsingBlock};
 pub use entry::ParsedEntry;

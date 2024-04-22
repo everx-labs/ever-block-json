@@ -2,9 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version 0.8.0
+## Version 0.8.4
 
 - Common Message support
+
+## Version 0.8.0
+
+- the crate was renamed from `ever_block_json` to `ever_block_json`
+- supported renaming of other crates
 
 ## Version 0.7.196
 

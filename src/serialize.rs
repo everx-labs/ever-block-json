@@ -1,24 +1,20 @@
 /*
- * Copyright (C) 2019-2022 TON Labs. All Rights Reserved.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.  You may obtain a copy of the
  * License at:
  *
- * https://www.ton.dev/licenses
+ * https://www.ever.dev/licenses
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and limitations
+ * See the License for the specific EVERX DEV software governing permissions and limitations
  * under the License.
  */
 
-use ton_block::*;
-use ton_types::{
-    Result, fail, BuilderData, AccountId, Cell, SliceData, HashmapType, UInt256, write_boc,
-    read_single_root_boc,
-};
+use ever_block::*;
 use ton_api::ton::ton_node::{RempMessageLevel, RempMessageStatus, RempReceipt};
 use num::BigInt;
 use num_traits::sign::Signed;

@@ -1,27 +1,27 @@
 /*
- * Copyright (C) 2019-2021 TON Labs. All Rights Reserved.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.  You may obtain a copy of the
  * License at:
  *
- * https://www.ton.dev/licenses
+ * https://www.ever.dev/licenses
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and limitations
+ * See the License for the specific EVERX DEV software governing permissions and limitations
  * under the License.
  */
 
 use super::*;
 use crate::{serialize_config, SerializationMode, serialize_config_param};
-use ton_block::{
+use ever_block::{
     ConfigParam3, ConfigParam32, ConfigParam33, ConfigParam35, ConfigParam36, ConfigParam37,
     ConfigParam39, ConfigParam4, ConfigParam6, ConfigVotingSetup, DelectorParams, Number16,
     SigPubKey, VarUInteger32, ConfigCopyleft,
 };
-use ton_types::{BuilderData, IBitstring};
+use ever_block::{BuilderData, IBitstring};
 
 include!("./test_common.rs");
 
@@ -535,7 +535,7 @@ fn test_parse_config_params() {
 #[test]
 fn test_parse_block_proof() {
     let boc = include_bytes!("data/block_proof");
-    let ethalon_proof = ton_block::BlockProof::construct_from_bytes(boc).unwrap();
+    let ethalon_proof = ever_block::BlockProof::construct_from_bytes(boc).unwrap();
     let json = serde_json::from_str(include_str!("data/proof-ethalon.json")).unwrap();
 
     let parsed_proof = parse_block_proof(&json, ethalon_proof.proof_for.file_hash.clone()).unwrap();

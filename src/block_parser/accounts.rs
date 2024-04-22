@@ -5,9 +5,9 @@ use crate::{
     ParsingBlock,
 };
 use std::collections::{HashMap, HashSet};
-use ton_block::{Account, ChildCell, Serializable, ShardAccounts, Transaction};
-use ton_types::{fail, AccountId, Cell, ExceptionCode, SliceData, UInt256};
-use ton_types::{write_boc, BuilderData, Result};
+use ever_block::{Account, ChildCell, Serializable, ShardAccounts, Transaction};
+use ever_block::{fail, AccountId, Cell, ExceptionCode, SliceData, UInt256};
+use ever_block::{write_boc, BuilderData, Result};
 
 pub(crate) enum AccountTransition {
     None,
@@ -34,7 +34,7 @@ fn read_accounts(cell: Cell) -> Result<ShardAccounts> {
     let cell = &mut cell;
     let tag = cell.get_next_u32()?;
     if tag != SHARD_STATE_UNSPLIT_PFX && tag != SHARD_STATE_UNSPLIT_PFX_2 {
-        Err(ton_block::BlockError::InvalidConstructorTag {
+        Err(ever_block::BlockError::InvalidConstructorTag {
             t: tag,
             s: "ShardStateUnsplit".to_string(),
         })?;

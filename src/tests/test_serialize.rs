@@ -1,24 +1,24 @@
 /*
- * Copyright (C) 2019-2021 TON Labs. All Rights Reserved.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.  You may obtain a copy of the
  * License at:
  *
- * https://www.ton.dev/licenses
+ * https://www.ever.dev/licenses
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and limitations
+ * See the License for the specific EVERX DEV software governing permissions and limitations
  * under the License.
  */
 
 use super::*;
 use pretty_assertions::assert_eq;
 use std::{fs::read, path::Path};
-use ton_types::{write_boc, AccountId, IBitstring, read_single_root_boc};
-use ton_block::{
+use ever_block::{write_boc, AccountId, IBitstring, read_single_root_boc};
+use ever_block::{
     generate_test_account_by_init_code_hash,
     ShardStateUnsplit, Transaction, TransactionProcessingStatus,
 };
@@ -1198,7 +1198,7 @@ fn test_get_config() {
 
     assert_eq!(etalon, json);
   /*if json != etalon {
-    std::fs::write("real_ton_data/p12-config-param.json", &json).unwrap();
+    std::fs::write("real_ever_data/p12-config-param.json", &json).unwrap();
     panic!("json != etalon")
   }*/
 }
@@ -1354,13 +1354,13 @@ fn test_crafted_key_block_into_json() {
         let mut cp = ConfigParam39::new();
 
         let spk = SigPubKey::from_bytes(&key).unwrap();
-        let cs = CryptoSignature::from_r_s(&[1;32], &[2;32]).unwrap();
+        let cs = CryptoSignature::with_r_s(&[1;32], &[2;32]);
         let vtk = ValidatorTempKey::with_params(UInt256::from([3;32]), spk, 100500, 1562663724);
         let vstk = ValidatorSignedTempKey::with_key_and_signature(vtk, cs);
         cp.insert(&UInt256::from([1;32]), &vstk).unwrap();
 
         let spk = SigPubKey::from_bytes(&key).unwrap();
-        let cs = CryptoSignature::from_r_s(&[6;32], &[7;32]).unwrap();
+        let cs = CryptoSignature::with_r_s(&[6;32], &[7;32]);
         let vtk = ValidatorTempKey::with_params(UInt256::from([8;32]), spk, 500100, 1562664724);
         let vstk = ValidatorSignedTempKey::with_key_and_signature(vtk, cs);
         cp.insert(&UInt256::from([2;32]), &vstk).unwrap();
@@ -1377,7 +1377,7 @@ fn test_crafted_key_block_into_json() {
     let mut custom = extra.read_custom().unwrap().unwrap();
 
     // Need to add prev_block_signatures
-    let cs = CryptoSignature::from_r_s(&[1;32], &[2;32]).unwrap();
+    let cs = CryptoSignature::with_r_s(&[1;32], &[2;32]);
     let csp = CryptoSignaturePair::with_params(UInt256::from([12;32]), cs.clone());
     custom.prev_blk_signatures_mut().set(&123_u16, &csp).unwrap();
     custom.prev_blk_signatures_mut().set(&345_u16, &csp).unwrap();
@@ -1385,7 +1385,7 @@ fn test_crafted_key_block_into_json() {
     // Need to add shard with FutureSplitMerge
     let sd = ShardDescr::with_params(42, 17, 25, UInt256::from_le_bytes(&[70]), FutureSplitMerge::Split{split_utime: 0x12345678, interval: 0x87654321});
     let mut wc0 = custom.hashes().get(&0_u32).unwrap().unwrap();
-    let mut key = ton_types::BuilderData::new();
+    let mut key = ever_block::BuilderData::new();
     key.append_bit_one().unwrap();
     key.append_bit_one().unwrap();
     let key = SliceData::load_builder(key).unwrap();
@@ -1433,8 +1433,8 @@ fn test_db_serialize_block_signatures() {
         "_id",
         &UInt256::from([1;32]),
         &[
-          CryptoSignaturePair::with_params(UInt256::from([2;32]), CryptoSignature::from_r_s(&[3;32], &[4;32]).unwrap()),
-          CryptoSignaturePair::with_params(UInt256::from([5;32]), CryptoSignature::from_r_s(&[6;32], &[7;32]).unwrap())
+          CryptoSignaturePair::with_params(UInt256::from([2;32]), CryptoSignature::with_r_s(&[3;32], &[4;32])),
+          CryptoSignaturePair::with_params(UInt256::from([5;32]), CryptoSignature::with_r_s(&[6;32], &[7;32]))
         ]).unwrap()
     )).unwrap();
 
@@ -1548,7 +1548,7 @@ fn check_shard_state(name: &str, workchain_id: i32, mode: SerializationMode) {
 #[test]
 fn test_serialize_mc_zerostate_s() {
     check_shard_state(
-        "main_ton_dev_zerostate_-1_D270B87B2952B5BA7DAA70AAF0A8C361BEFCF4D8D2DB92F9640D5443070838E4",
+        "main_ever_dev_zerostate_-1_D270B87B2952B5BA7DAA70AAF0A8C361BEFCF4D8D2DB92F9640D5443070838E4",
         -1,
         SerializationMode::Standart
     );
@@ -1557,7 +1557,7 @@ fn test_serialize_mc_zerostate_s() {
 #[test]
 fn test_serialize_mc_zerostate_q() {
     check_shard_state(
-        "main_ton_dev_zerostate_-1_D270B87B2952B5BA7DAA70AAF0A8C361BEFCF4D8D2DB92F9640D5443070838E4",
+        "main_ever_dev_zerostate_-1_D270B87B2952B5BA7DAA70AAF0A8C361BEFCF4D8D2DB92F9640D5443070838E4",
         -1,
         SerializationMode::QServer
     );
@@ -1566,7 +1566,7 @@ fn test_serialize_mc_zerostate_q() {
 #[test]
 fn test_serialize_wc_zerostate_s() {
     check_shard_state(
-        "main_ton_dev_zerostate_0_97AF4602A57FC884F68BB4659BAB8875DC1F5E45A9FD4FBAFD0C9BC10AA5067C",
+        "main_ever_dev_zerostate_0_97AF4602A57FC884F68BB4659BAB8875DC1F5E45A9FD4FBAFD0C9BC10AA5067C",
         0,
         SerializationMode::Standart
     );
@@ -1575,7 +1575,7 @@ fn test_serialize_wc_zerostate_s() {
 #[test]
 fn test_serialize_wc_zerostate_q() {
     check_shard_state(
-        "main_ton_dev_zerostate_0_97AF4602A57FC884F68BB4659BAB8875DC1F5E45A9FD4FBAFD0C9BC10AA5067C",
+        "main_ever_dev_zerostate_0_97AF4602A57FC884F68BB4659BAB8875DC1F5E45A9FD4FBAFD0C9BC10AA5067C",
         0,
         SerializationMode::QServer
     );
@@ -1729,13 +1729,13 @@ fn test_se_deserialise_remp_accepted() {
             rempmessagestatus::RempAccepted {
                 level: RempMessageLevel::TonNode_RempMasterchain,
                 block_id: BlockIdExt::with_params(
-                    ton_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
+                    ever_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
                     1830539,
                     "18AFCDD25BE0989CE516504263EB356618A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap(),
                     "18AFCDD25BE0989CE516554263EB351818A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap()
                 ).into(),
                 master_id: BlockIdExt::with_params(
-                    ton_block::ShardIdent::with_tagged_prefix(-1, 0x8000_0000_0000_0000).unwrap(),
+                    ever_block::ShardIdent::with_tagged_prefix(-1, 0x8000_0000_0000_0000).unwrap(),
                     1830539,
                     "18AFCD115BE0989CE516504263EB356618A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap(),
                     "18AFC2225BE0989CE516554263EB351818A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap()
@@ -1751,7 +1751,7 @@ fn test_se_deserialise_remp_duplicate() {
         RempMessageStatus::TonNode_RempDuplicate (
             rempmessagestatus::RempDuplicate {
                 block_id: BlockIdExt::with_params(
-                    ton_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
+                    ever_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
                     1830539,
                     "18AFCDD25BE0989CE516504263EB356618A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap(),
                     "18AFCDD25BE0989CE516554263EB351818A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap()
@@ -1768,7 +1768,7 @@ fn test_se_deserialise_remp_ignored() {
             rempmessagestatus::RempIgnored {
                 level: RempMessageLevel::TonNode_RempMasterchain,
                 block_id: BlockIdExt::with_params(
-                    ton_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
+                    ever_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
                     1830539,
                     "18AFCDD25BE0989CE516504263EB356618A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap(),
                     "18AFCDD25BE0989CE516554263EB351818A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap()
@@ -1790,7 +1790,7 @@ fn test_se_deserialise_remp_rejected() {
             rempmessagestatus::RempRejected {
                 level: RempMessageLevel::TonNode_RempMasterchain,
                 block_id: BlockIdExt::with_params(
-                    ton_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
+                    ever_block::ShardIdent::with_tagged_prefix(0, 0x3800_0000_0000_0000).unwrap(),
                     1830539,
                     "18AFCDD25BE0989CE516504263EB356618A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap(),
                     "18AFCDD25BE0989CE516554263EB351818A0FF8F6AB3689501C8E3B767EF413C".parse().unwrap()
