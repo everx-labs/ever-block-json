@@ -16,8 +16,8 @@ num-traits = '0.2'
 serde = '1.0'
 serde_derive = '1.0'
 serde_json = { features = [ 'preserve_order' ], version = '1.0' }
-ton_api = { git = 'https://github.com/tonlabs/ever-tl.git', package = 'ton_api', branch = 'feature-mesh' }
-ever_block = { git = 'https://github.com/tonlabs/ever-block.git', branch = 'feature-mesh' }
+ton_api = { git = 'https://github.com/everx-labs/ever-tl.git', package = 'ton_api', branch = 'feature-mesh' }
+ever_block = { git = 'https://github.com/everx-labs/ever-block.git', branch = 'feature-mesh' }
 
 [dev-dependencies]
 pretty_assertions = '1.3'
