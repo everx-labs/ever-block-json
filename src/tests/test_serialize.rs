@@ -1115,7 +1115,7 @@ fn test_masterblock_with_copyleft_into_json() {
 }
 
 fn get_validator_set() -> ValidatorSet {
-    let keydat = base64::decode("7w3fX5jiuo8PyQoFaEL+K9pE/XvbKjH63i0JcraLlBM=").unwrap();
+    let keydat = base64_decode("7w3fX5jiuo8PyQoFaEL+K9pE/XvbKjH63i0JcraLlBM=").unwrap();
 
     let key = SigPubKey::from_bytes(&keydat).unwrap();
     let vd1 = ValidatorDescr::with_params(key, 1, None, None);
@@ -1164,7 +1164,7 @@ fn test_crafted_key_block_into_json() {
     let boc = read(in_path).expect(&format!("Error reading file {:?}", filename));
     let cell = read_single_root_boc(&boc).expect("Error deserializing single root BOC");
     // println!("slice = {}", root_cell);
-    let key = base64::decode("7w3fX5jiuo8PyQoFaEL+K9pE/XvbKjH63i0JcraLlBM=").unwrap();
+    let key = base64_decode("7w3fX5jiuo8PyQoFaEL+K9pE/XvbKjH63i0JcraLlBM=").unwrap();
     // ef0ddf5f98e2ba8f0fc90a056842fe2bda44fd7bdb2a31fade2d0972b68b9413
 
     let mut block = Block::construct_from_cell(cell).unwrap();
