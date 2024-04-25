@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.8.5
+
+- Removed extra crate base64
+
 ## Version 0.8.0
 
 - the crate was renamed from `ever_block_json` to `ever_block_json`
