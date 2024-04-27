@@ -5,7 +5,7 @@ use crate::{
     ParsingBlock,
 };
 use std::collections::{HashMap, HashSet};
-use ever_block::{Account, ChildCell, Serializable, ShardAccounts, Transaction};
+use ever_block::{Account, Deserializable, Serializable, ShardAccounts, Transaction};
 use ever_block::{fail, AccountId, Cell, ExceptionCode, SliceData, UInt256};
 use ever_block::{write_boc, BuilderData, Result};
 
@@ -28,6 +28,8 @@ pub(crate) struct ParserAccounts<'a, R: JsonReducer> {
 }
 
 fn read_accounts(cell: Cell) -> Result<ShardAccounts> {
+    // we cannot read full ShardStateUnsplit because some of its references can be pruned
+    // ShardStateUnsplit::construct_from_cell(cell)?.read_accounts()
     const SHARD_STATE_UNSPLIT_PFX: u32 = 0x9023afe2;
     const SHARD_STATE_UNSPLIT_PFX_2: u32 = 0x9023aeee;
     let mut cell = SliceData::load_cell(cell)?;
@@ -42,9 +44,7 @@ fn read_accounts(cell: Cell) -> Result<ShardAccounts> {
     // out_msg_queue_info
     cell.checked_drain_reference()?;
 
-    let mut accounts = ChildCell::<ShardAccounts>::default();
-    accounts.read_from_reference(cell)?;
-    accounts.read_struct()
+    ShardAccounts::construct_from_cell(cell.checked_drain_reference()?)
 }
 
 enum UpdateSide {

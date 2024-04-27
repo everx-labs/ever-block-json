@@ -266,7 +266,7 @@ fn serialize_cell(
     if let Some(cell) = cell {
         if !cell.is_pruned() {
             let bytes = write_boc(cell)?;
-            serialize_field(map, id_str, base64::encode(bytes));
+            serialize_field(map, id_str, base64_encode(bytes));
         }
         if write_hash {
             let string = id_str.to_owned() + "_hash";
@@ -285,7 +285,7 @@ fn serialize_slice(
     if let Some(slice) = slice {
         let cell = slice.clone().into_cell();
         let bytes = write_boc(&cell)?;
-        serialize_field(map, id_str, base64::encode(bytes));
+        serialize_field(map, id_str, base64_encode(bytes));
         if write_hash {
             let string = id_str.to_owned() + "_hash";
             serialize_uint256(map, &string, &cell.repr_hash())
@@ -965,7 +965,7 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         },
         ConfigParamEnum::ConfigParam13(ref c) => {
             let boc = write_boc(&c.cell)?;
-            serialize_field(&mut map, "boc", base64::encode(boc));
+            serialize_field(&mut map, "boc", base64_encode(boc));
         },
         ConfigParamEnum::ConfigParam14(ref c) => {
             serialize_grams(&mut map, "masterchain_block_fee",
@@ -1222,7 +1222,7 @@ fn serialize_libraries(map: &mut Map<String, Value>, id_str: &str, libraries: &L
         libraries_vec.push(serde_json::json!({
             "hash": key.as_hex_string(),
             "publishers": publishers,
-            "lib": base64::encode(write_boc(value.lib())?)
+            "lib": base64_encode(write_boc(value.lib())?)
         }));
         Ok(true)
     })?;
@@ -1434,7 +1434,7 @@ pub fn db_serialize_block_ex<'a>(
             BlockProcessingStatus::Refused => "refused",
         });
     }
-    map.insert("boc".to_string(), base64::encode(set.boc).into());
+    map.insert("boc".to_string(), base64_encode(set.boc).into());
     map.insert("global_id".to_string(), set.block.global_id.into());
     let block_info = set.block.read_info()?;
     map.insert("version".to_string(), block_info.version().into());
@@ -1652,9 +1652,9 @@ pub fn db_serialize_transaction_ex<'a>(
     serialize_id(&mut map, id_str, Some(set.id));
     serialize_id(&mut map, "block_id", set.block_id);
     if let Some(proof) = &set.proof {
-        serialize_field(&mut map, "proof", base64::encode(proof));
+        serialize_field(&mut map, "proof", base64_encode(proof));
     }
-    serialize_field(&mut map, "boc", base64::encode(set.boc));
+    serialize_field(&mut map, "boc", base64_encode(set.boc));
     serialize_field(&mut map, "status", set.status as u8);
     if mode.is_q_server() {
         serialize_field(&mut map, "status_name", match set.status {
@@ -1870,9 +1870,9 @@ pub fn db_serialize_account_ex(
         serialize_field(&mut map, id_str, addr.to_string());
         serialize_field(&mut map, "workchain_id", addr.get_workchain_id());
     }
-    serialize_field(&mut map, "boc", base64::encode(&set.boc));
+    serialize_field(&mut map, "boc", base64_encode(&set.boc));
     if let Some(boc1) = set.boc1.as_ref() {
-        serialize_field(&mut map, "boc1", base64::encode(boc1));
+        serialize_field(&mut map, "boc1", base64_encode(boc1));
     }
     serialize_id(&mut map, "init_code_hash", set.account.init_code_hash());
     if let Some(storage_stat) = set.account.storage_info() {
@@ -1910,7 +1910,7 @@ pub fn db_serialize_account_ex(
         AccountStatus::AccStateNonexist => fail!("Attempt to call serde::Serialize::serialize for AccountNone")
     };
     if let Some(proof) = &set.proof {
-        serialize_field(&mut map, "proof", base64::encode(proof));
+        serialize_field(&mut map, "proof", base64_encode(proof));
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
     serialize_id(&mut map, "prev_code_hash", (&set.prev_code_hash).as_ref());
@@ -1984,9 +1984,9 @@ pub fn db_serialize_message_ex(id_str: &'static str, set: &MessageSerializationS
     //serialize_id(&mut map, "block_id", set.block_id.as_ref());
     serialize_id(&mut map, "transaction_id", set.transaction_id.as_ref());
     if let Some(proof) = &set.proof {
-        serialize_field(&mut map, "proof", base64::encode(proof));
+        serialize_field(&mut map, "proof", base64_encode(proof));
     }
-    serialize_field(&mut map, "boc", base64::encode(&set.boc));
+    serialize_field(&mut map, "boc", base64_encode(&set.boc));
     serialize_field(&mut map, "status", set.status as u8);
     if mode.is_q_server() {
         serialize_field(&mut map, "status_name", match set.status {
@@ -2157,7 +2157,7 @@ pub fn db_serialize_shard_state_ex(id_str: &'static str, set: &ShardStateSeriali
     serialize_file_hash(&mut map, None, &set.boc);
     serialize_id(&mut map, "block_id", set.block_id.as_ref());
     serialize_field(&mut map, "workchain_id", set.workchain_id);
-    serialize_field(&mut map, "boc", base64::encode(&set.boc));
+    serialize_field(&mut map, "boc", base64_encode(&set.boc));
     serialize_field(&mut map, "global_id", set.state.global_id());
     serialize_field(&mut map, "shard", set.state.shard().shard_prefix_as_str_with_tag());
     serialize_field(&mut map, "seq_no", set.state.seq_no());
@@ -2240,7 +2240,7 @@ pub fn db_serialize_remp_status(
     serialize_uint256(&mut map, "message_id", status.message_id());
     serialize_field(&mut map, "timestamp", *status.timestamp());
     serialize_uint256(&mut map, "source_id", status.source_id());
-    serialize_field(&mut map, "signature", base64::encode(signature));
+    serialize_field(&mut map, "signature", base64_encode(signature));
 
     match status.status() {
         RempMessageStatus::TonNode_RempAccepted(acc) => {

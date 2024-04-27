@@ -20,23 +20,7 @@ use ton_api::{
     ton::ton_node::{rempmessagestatus, RempMessageLevel, RempMessageStatus, RempReceipt},
     IntoBoxed
 };
-use ever_block::{
-    Account, Augmentation, BlockCreateFees, BlockIdExt, BlockLimits, CatchainConfig,
-    ConfigParam0, ConfigParam1, ConfigParam10, ConfigParam11, ConfigParam12,
-    ConfigParam13, ConfigParam14, ConfigParam15, ConfigParam16, ConfigParam17, ConfigParam18,
-    ConfigParam18Map, ConfigParam2, ConfigParam29, ConfigParam3, ConfigParam31, ConfigParam32,
-    ConfigParam33, ConfigParam34, ConfigParam35, ConfigParam36, ConfigParam37, ConfigParam39,
-    ConfigParam4, ConfigParam40, ConfigParam5, ConfigParam6, ConfigParam7, ConfigParam8, ConfigParam9,
-    ConfigParamEnum, ConfigParams, ConfigProposalSetup, ConsensusConfig, CryptoSignature,
-    CurrencyCollection, DelectorParams, Deserializable, ExtraCurrencyCollection,
-    FundamentalSmcAddresses, GasLimitsPrices, GlobalVersion, Grams, HashmapAugType, LibDescr,
-    MandatoryParams, McStateExtra, MsgAddressInt, MsgForwardPrices, ParamLimits, Serializable,
-    ShardAccount, ShardIdent, ShardStateUnsplit, SigPubKey, SlashingConfig, StoragePrices,
-    SuspendedAddresses, ValidatorDescr, ValidatorKeys, ValidatorSet, ValidatorSignedTempKey,
-    ValidatorTempKey, WorkchainDescr, WorkchainFormat, WorkchainFormat0, WorkchainFormat1,
-    Workchains, MASTERCHAIN_ID, SHARD_FULL, MeshConfig, ConnectedNwConfig,
-};
-use ever_block::{error, fail, Result, UInt256, read_single_root_boc};
+use ever_block::*;
 
 trait ParseJson {
     fn as_uint256(&self) -> Result<UInt256>;
@@ -52,7 +36,7 @@ impl ParseJson for Value {
         self.as_str().ok_or_else(|| error!("field is not str"))?.parse()
     }
     fn as_base64(&self) -> Result<Vec<u8>> {
-        Ok(base64::decode(self.as_str().ok_or_else(|| error!("field is not str"))?)?)
+        Ok(base64_decode(self.as_str().ok_or_else(|| error!("field is not str"))?)?)
     }
     fn as_int(&self) -> Result<i32> {
         match self.as_i64() {
@@ -147,7 +131,7 @@ impl<'m, 'a> PathMap<'m, 'a> {
                 self.path.join("/"), name, err))
     }
     fn get_base64(&self, name: &'a str) -> Result<Vec<u8>> {
-        base64::decode(self.get_str(name)?)
+        base64_decode(self.get_str(name)?)
             .map_err(|err| error!("{}/{} must be the base64 : {}",
                 self.path.join("/"), name, err))
     }
@@ -1103,7 +1087,7 @@ pub fn parse_block_proof(
 
     let map_path = PathMap::new(map);
 
-    let root = ever_block::read_single_root_boc(base64::decode(map_path.get_str("proof")?)?)?;
+    let root = ever_block::read_single_root_boc(base64_decode(map_path.get_str("proof")?)?)?;
 
     let merkle_proof = ever_block::MerkleProof::construct_from_cell(root.clone())?;
     let block_virt_root = merkle_proof.proof.virtualize(1);

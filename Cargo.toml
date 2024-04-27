@@ -2,10 +2,9 @@
 build = 'common/build/build.rs'
 edition = '2021'
 name = 'ever_block_json'
-version = '0.8.4'
+version = '0.8.7'
 
 [dependencies]
-base64 = '0.13'
 failure = '0.1'
 hex = '0.4'
 lazy_static = '1.4.0'

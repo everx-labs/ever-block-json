@@ -331,11 +331,11 @@ fn get_config_param_39() -> ConfigParam39 {
 fn get_validator_set() -> ValidatorSet {
     let mut list = vec!();
 
-    let key = SigPubKey::from_bytes(&*base64::decode("39MLqLIVrzLqPCHCFpbn1/jILSbfNMtnr/7zOkKE1Ds=").unwrap()).unwrap();
+    let key = SigPubKey::from_bytes(&*base64_decode("39MLqLIVrzLqPCHCFpbn1/jILSbfNMtnr/7zOkKE1Ds=").unwrap()).unwrap();
     let vd = ValidatorDescr::with_params(key, 4, None, None);
     list.push(vd);
 
-    let key = SigPubKey::from_bytes(&*base64::decode("BIYYOFHTgVDIFzVLhuSZw2ne1J3zuv75zwYhAXb0+iY=").unwrap()).unwrap();
+    let key = SigPubKey::from_bytes(&*base64_decode("BIYYOFHTgVDIFzVLhuSZw2ne1J3zuv75zwYhAXb0+iY=").unwrap()).unwrap();
     let vd = ValidatorDescr::with_params(key, 5, None, None);
     list.push(vd);
 
