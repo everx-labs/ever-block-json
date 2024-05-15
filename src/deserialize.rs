@@ -410,6 +410,36 @@ impl StateParser {
         })
     }
 
+    fn parse_mesh_config(&mut self, config: &PathMap) -> Result<()> {
+        self.parse_array(config, 58, |p58| {
+            let mut map = MeshConfig::default();
+            p58.iter().try_for_each::<_, Result<_>>(|value| {
+                let p = PathMap::cont(config, "p58", value)?;
+                let nw_id = p.get_num("network_id")? as i32;
+                let mut hardforks = vec!();
+                if let Ok(vector) = p.get_vec("hardforks") {
+                    for hf in vector {
+                        let p = PathMap::cont(&p, "hardforks", hf)?;
+                        hardforks.push(parse_separated_block_id_ext(&p)?);
+                    }
+                }
+                let nw_cfg = ConnectedNwConfig {
+                    zerostate: parse_separated_block_id_ext(&p.get_obj("zerostate")?)?,
+                    is_active: p.get_bool("is_active")?,
+                    currency_id: p.get_num("currency_id")? as u32,
+                    init_block: parse_separated_block_id_ext(&p.get_obj("init_block")?)?,
+                    emergency_guard_addr: p.get_uint256("emergency_guard_addr")?,
+                    pull_addr: p.get_uint256("pull_addr")?,
+                    minter_addr: p.get_uint256("minter_addr")?,
+                    hardforks
+                };
+                map.set(&nw_id, &nw_cfg)?;
+                Ok(())
+            })?;
+            Ok(ConfigParamEnum::ConfigParam58(map))
+        })
+    }
+
     fn parse_param_set(&mut self, config: &PathMap) -> Result<()> {
         if let Some(mandatory_params) = self.parse_param_set_params(config, 9)? {
             self.extra.config.set_config(ConfigParamEnum::ConfigParam9(ConfigParam9 {mandatory_params} ))?;
@@ -470,7 +500,11 @@ impl StateParser {
                         let max_addr_len      = wc_info.get_num("max_addr_len")? as u16;
                         let addr_len_step     = wc_info.get_num("addr_len_step")? as u16;
                         let workchain_type_id = wc_info.get_num("workchain_type_id")? as u32;
-                        WorkchainFormat::Extended(WorkchainFormat0::with_params(min_addr_len, max_addr_len, addr_len_step, workchain_type_id)?)
+                        WorkchainFormat::Extended(
+                            WorkchainFormat0::with_params(
+                                min_addr_len, max_addr_len, addr_len_step, workchain_type_id
+                            )?
+                        )
                     }
                 };
                 workchains.set(&workchain_id, &descr)
@@ -763,6 +797,8 @@ impl StateParser {
             Ok(ConfigParamEnum::ConfigParam44(suspended))
         })?;
 
+        self.parse_mesh_config(config)?;     // p58
+
         Ok(())
     }
 
@@ -934,6 +970,18 @@ fn parse_block_id_ext(map_path: &PathMap, mc: bool) -> Result<BlockIdExt> {
             map_path.get_uint256("block_file_hash")?,
         ))
     }
+}
+
+fn parse_separated_block_id_ext(map_path: &PathMap) -> Result<BlockIdExt> {
+    Ok(BlockIdExt::with_params(
+        ShardIdent::with_tagged_prefix(
+            map_path.get_num("wc")? as i32,
+            u64::from_str_radix(map_path.get_str("shard")?, 16)?
+        )?,
+        map_path.get_num("seqno")? as u32,
+        map_path.get_uint256("root_hash")?,
+        map_path.get_uint256("file_hash")?,
+    ))
 }
 
 pub fn parse_remp_status(map: &Map<String, Value>)

@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.8.7
+
+- Mesh data structures
+
 ## Version 0.8.5
 
 - Removed extra crate base64
+
+## Version 0.8.4
+
+- Common Message support
 
 ## Version 0.8.0
 

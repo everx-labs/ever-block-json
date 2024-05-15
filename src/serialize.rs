@@ -881,6 +881,31 @@ fn serialize_suspended_addresses(sa: &SuspendedAddresses) -> Result<Value> {
     Ok(vector.into())
 }
 
+fn serialize_mesh_config(mc: &MeshConfig) -> Result<Value> {
+    let mut vector = Vec::new();
+    mc.iterate_with_keys(|k: i32, v| {
+        let mut map = Map::new();
+        serialize_field(&mut map, "network_id", k);
+        serialize_field(&mut map, "zerostate", serialize_separated_block_id_ext(&v.zerostate)?);
+        serialize_field(&mut map, "is_active", v.is_active);
+        serialize_field(&mut map, "currency_id", v.currency_id);
+        serialize_field(&mut map, "init_block", serialize_separated_block_id_ext(&v.init_block)?);
+        serialize_uint256(&mut map, "emergency_guard_addr", &v.emergency_guard_addr);
+        serialize_uint256(&mut map, "pull_addr", &v.pull_addr);
+        serialize_uint256(&mut map, "minter_addr", &v.minter_addr);
+        if !v.hardforks.is_empty() {
+            let mut hardforks: Vec<Value> = Vec::new();
+            for hf in &v.hardforks {
+                hardforks.push(serialize_separated_block_id_ext(hf)?)
+            }
+            serialize_field(&mut map, "hardforks", hardforks);
+        }
+        vector.push(map);
+        Ok(true)
+    })?;
+    Ok(vector.into())
+}
+
 fn serialize_crypto_signature(s: &CryptoSignaturePair) -> Result<Value> {
     let mut map = Map::new();
     serialize_uint256(&mut map, "node_id", &s.node_id_short);
@@ -1049,7 +1074,10 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         },
         ConfigParamEnum::ConfigParam44(ref c) => {
             return Ok(Some(serialize_suspended_addresses(c)?));
-        }
+        },
+        ConfigParamEnum::ConfigParam58(ref c) => {
+            return Ok(Some(serialize_mesh_config(c)?));
+        },
         _ => {
             return Ok(None)
         },
@@ -1717,39 +1745,44 @@ pub fn db_serialize_transaction_ex<'a>(
     serialize_account_status(&mut map, "end_status", &set.transaction.end_status, mode);
     let mut balance_delta = SignedCurrencyCollection::new();
     let mut address_from_message = None;
-    if let Some(msg) = &set.transaction.in_msg {
+    if !set.transaction.in_msg.empty() {
+        let msg = &set.transaction.in_msg;
         serialize_id(&mut map, "in_msg", Some(&msg.hash()));
 
         let msg = msg.read_struct()?;
-        if let Some(value) = msg.get_value() {
-            balance_delta.add(&SignedCurrencyCollection::from_cc(value)?);
-        }
-        // IHR fee is added to account balance if IHR is not used or to total fees if message
-        // delivered through IHR
-        if let Some((ihr_fee, _)) = get_msg_fees(&msg) {
-            balance_delta.grams += ihr_fee.as_u128();
-        }
-        address_from_message = msg.dst_ref().cloned();
-
-        if msg.is_inbound_external() {
-            serialize_grams(&mut map, "ext_in_msg_fee", &ext_in_msg_fee.unwrap_or_default(), mode);
+        if let Ok(msg) = msg.get_std() {
+            if let Some(value) = msg.get_value() {
+                balance_delta.add(&SignedCurrencyCollection::from_cc(value)?);
+            }
+            // IHR fee is added to account balance if IHR is not used or to total fees if message 
+            // delivered through IHR
+            if let Some((ihr_fee, _)) = get_msg_fees(&msg) {
+                balance_delta.grams += ihr_fee.as_u128();
+            }
+            address_from_message = msg.dst_ref().cloned();
+            
+            if msg.is_inbound_external() {
+                serialize_grams(&mut map, "ext_in_msg_fee", &ext_in_msg_fee.unwrap_or_default(), mode);
+            }
         }
     }
     let mut out_ids = vec![];
+    let opts = set.transaction.out_msgs.serde_opts();
     set.transaction.out_msgs.iterate_slices(|slice| {
         if let Some(cell) = slice.reference_opt(0) {
             out_ids.push(cell.repr_hash().as_hex_string());
-
-            let msg = Message::construct_from_cell(cell)?;
-            if let Some(value) = msg.get_value() {
-                balance_delta.sub(&SignedCurrencyCollection::from_cc(value)?);
-            }
-            if let Some((ihr_fee, fwd_fee)) = get_msg_fees(&msg) {
-                balance_delta.grams -= ihr_fee.as_u128();
-                balance_delta.grams -= fwd_fee.as_u128();
-            }
-            if address_from_message.is_none() {
-                address_from_message = msg.src_ref().cloned();
+            let msg = CommonMessage::construct_from_cell_with_opts(cell, opts)?;
+            if let Ok(msg) = msg.get_std() {
+                if let Some(value) = msg.get_value() {
+                    balance_delta.sub(&SignedCurrencyCollection::from_cc(value)?);
+                }
+                if let Some((ihr_fee, fwd_fee)) = get_msg_fees(&msg) {
+                    balance_delta.grams -= ihr_fee.as_u128();
+                    balance_delta.grams -= fwd_fee.as_u128();
+                }
+                if address_from_message.is_none() {
+                    address_from_message = msg.src_ref().cloned();
+                }
             }
         }
         Ok(true)
@@ -2186,6 +2219,16 @@ fn serialize_block_id_ext(map: &mut Map<String, Value>, id: &BlockIdExt, mc: boo
         serialize_field(map, "shard", id.shard().shard_prefix_as_str_with_tag());
         serialize_field(map, "wc", id.shard().workchain_id());
     }
+}
+
+fn serialize_separated_block_id_ext(id: &BlockIdExt) -> Result<Value>{
+    let mut map = Map::new();
+    serialize_field(&mut map, "wc", id.shard().workchain_id());
+    serialize_field(&mut map, "shard", id.shard().shard_prefix_as_str_with_tag());
+    serialize_field(&mut map, "seqno", id.seq_no());
+    serialize_uint256(&mut map, "root_hash", id.root_hash());
+    serialize_uint256(&mut map, "file_hash", id.file_hash());
+    Ok(map.into())
 }
 
 pub fn db_serialize_remp_status(
