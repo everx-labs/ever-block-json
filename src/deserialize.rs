@@ -22,6 +22,7 @@ use ton_api::{
 };
 use ever_block::*;
 
+#[allow(dead_code)]
 trait ParseJson {
     fn as_uint256(&self) -> Result<UInt256>;
     fn as_base64(&self) -> Result<Vec<u8>>;
