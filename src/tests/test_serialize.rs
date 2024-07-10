@@ -1859,3 +1859,124 @@ fn test_se_deserialise_mesh_config() {
 
     assert_eq!(mesh_config, config_params.mesh_config().unwrap().unwrap());
 }
+
+
+#[test]
+fn test_serialize_shard_descr_fast_finality() {
+
+  fn gen_collator(n: u32) -> CollatorRange {
+     let mut cr = CollatorRange {
+          collator: n as u16,
+          start: n,
+          finish: n + 100,
+          ..Default::default()
+      };
+      cr.mempool.push(1);
+      cr.mempool.push(2);
+      cr.mempool.push(4545);
+      cr
+  }
+
+  let mut descr_merge = ShardDescr::with_params(42, 17, 25, UInt256::from([70; 32]), FutureSplitMerge::Merge{merge_utime: 0x12345678, interval: 0x87654321});
+  let mut stat = ValidatorsStat::new(12);
+  stat.update(3, |_| 444).unwrap();
+  stat.update(2, |_| 2544).unwrap();
+  descr_merge.collators = Some(ShardCollators {
+      prev: gen_collator(1),
+      prev2: Some(gen_collator(20)),
+      current: gen_collator(30),
+      next: gen_collator(100),
+      next2: None,
+      updated_at: 123,
+      stat
+  });
+
+  let doc = &serialize_shard_descr(&descr_merge, SerializationMode::Standart).unwrap();
+
+  assert_eq!(
+    format!("{:#}", serde_json::json!(doc)),
+r#"{
+  "seq_no": 42,
+  "reg_mc_seqno": 0,
+  "start_lt_dec": "17",
+  "start_lt": "111",
+  "end_lt_dec": "25",
+  "end_lt": "119",
+  "root_hash": "4646464646464646464646464646464646464646464646464646464646464646",
+  "file_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "before_split": false,
+  "before_merge": false,
+  "want_split": false,
+  "want_merge": false,
+  "nx_cc_updated": false,
+  "gen_utime": 0,
+  "next_catchain_seqno": 0,
+  "next_validator_shard": "0000000000000000",
+  "min_ref_mc_seqno": 0,
+  "flags": 0,
+  "fees_collected_dec": "0",
+  "fees_collected": "000",
+  "funds_created_dec": "0",
+  "funds_created": "000",
+  "copyleft_rewards": [],
+  "merge_utime": 305419896,
+  "merge_interval": 2271560481,
+  "collators": {
+    "prev": {
+      "collator": 1,
+      "start": 1,
+      "finish": 101,
+      "mempool": [
+        1,
+        2,
+        4545
+      ]
+    },
+    "prev2": {
+      "collator": 20,
+      "start": 20,
+      "finish": 120,
+      "mempool": [
+        1,
+        2,
+        4545
+      ]
+    },
+    "current": {
+      "collator": 30,
+      "start": 30,
+      "finish": 130,
+      "mempool": [
+        1,
+        2,
+        4545
+      ]
+    },
+    "next": {
+      "collator": 100,
+      "start": 100,
+      "finish": 200,
+      "mempool": [
+        1,
+        2,
+        4545
+      ]
+    },
+    "updated_at": 123,
+    "validators_familiarity": {
+      "0": 0,
+      "1": 0,
+      "2": 2544,
+      "3": 444,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0
+    }
+  }
+}"#)
+}

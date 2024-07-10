@@ -210,10 +210,19 @@ impl<'m, 'a> PathMap<'m, 'a> {
         )
     }
 
-    #[allow(dead_code)]
     fn get_u32(&self, name: &'a str, value: &mut u32) {
         if let Ok(new_value) = self.get_num(name) {
             *value = new_value as u32;
+        }
+    }
+    fn get_u16(&self, name: &'a str, value: &mut u16) {
+        if let Ok(new_value) = self.get_num(name) {
+            *value = new_value as u16;
+        }
+    }
+    fn get_u8(&self, name: &'a str, value: &mut u8) {
+        if let Ok(new_value) = self.get_num(name) {
+            *value = new_value as u8;
         }
     }
     fn get_num16(&self, name: &'a str) -> Result<u16> {
@@ -799,6 +808,28 @@ impl StateParser {
         })?;
 
         self.parse_mesh_config(config)?;     // p58
+
+        if let Ok(p61) = config.get_obj("p61") {
+            let mut ff_config = FastFinalityConfig::default();
+            p61.get_u32("split_merge_interval", &mut ff_config.split_merge_interval);
+            p61.get_u32("collator_range_len", &mut ff_config.collator_range_len);
+            p61.get_u32("lost_collator_timeout", &mut ff_config.lost_collator_timeout);
+            p61.get_u16("unreliability_fine", &mut ff_config.unreliability_fine);
+            p61.get_u16("unreliability_weak_fading", &mut ff_config.unreliability_weak_fading);
+            p61.get_u16("unreliability_strong_fading", &mut ff_config.unreliability_strong_fading);
+            p61.get_u16("unreliability_max", &mut ff_config.unreliability_max);
+            p61.get_u16("unreliability_weight", &mut ff_config.unreliability_weight);
+            p61.get_u16("familiarity_collator_fine", &mut ff_config.familiarity_collator_fine);
+            p61.get_u16("familiarity_msgpool_fine", &mut ff_config.familiarity_msgpool_fine);
+            p61.get_u16("familiarity_fading", &mut ff_config.familiarity_fading);
+            p61.get_u16("familiarity_max", &mut ff_config.familiarity_max);
+            p61.get_u16("familiarity_weight", &mut ff_config.familiarity_weight);
+            p61.get_u16("busyness_collator_fine", &mut ff_config.busyness_collator_fine);
+            p61.get_u16("busyness_msgpool_fine", &mut ff_config.busyness_msgpool_fine);
+            p61.get_u16("busyness_weight", &mut ff_config.busyness_weight);
+            p61.get_u8("candidates_percentile", &mut ff_config.candidates_percentile);
+            self.extra.config.set_config(ConfigParamEnum::ConfigParam61(ff_config))?;
+        }
 
         Ok(())
     }
