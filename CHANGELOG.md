@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.9.3
+
+- Added support of fast finality data structures
+
 ## Version 0.9.0
 
 - Use modern crates anyhow and thiserror instead of failure

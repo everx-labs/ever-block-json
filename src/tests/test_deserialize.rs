@@ -486,6 +486,9 @@ fn prepare_config_params() -> ConfigParams {
     let c44 = get_config_param44();
     cp.set_config(ConfigParamEnum::ConfigParam44(c44)).unwrap();
 
+    let c61 = FastFinalityConfig::default();
+    cp.set_config(ConfigParamEnum::ConfigParam61(c61)).unwrap();
+
     cp
 }
 
