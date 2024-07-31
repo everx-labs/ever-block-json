@@ -1121,6 +1121,20 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         ConfigParamEnum::ConfigParam44(ref c) => {
             return Ok(Some(serialize_suspended_addresses(c)?));
         },
+        ConfigParamEnum::ConfigParam62(ref c) => {
+            serialize_field(&mut map, "min_forwarding_neighbours_count", c.min_forwarding_neighbours_count);
+            serialize_field(&mut map, "max_forwarding_neighbours_count", c.max_forwarding_neighbours_count);
+            serialize_field(&mut map, "min_far_neighbours_count", c.min_far_neighbours_count);
+            serialize_field(&mut map, "max_far_neighbours_count", c.max_far_neighbours_count);
+            serialize_field(&mut map, "min_block_sync_period_ms", c.min_block_sync_period_ms);
+            serialize_field(&mut map, "max_block_sync_period_ms", c.max_block_sync_period_ms);
+            serialize_field(&mut map, "min_far_neighbours_sync_period_ms", c.min_far_neighbours_sync_period_ms);
+            serialize_field(&mut map, "max_far_neighbours_sync_period_ms", c.max_far_neighbours_sync_period_ms);
+            serialize_field(&mut map, "far_neighbours_resync_period_ms", c.far_neighbours_resync_period_ms);
+            serialize_field(&mut map, "block_sync_lifetime_period_ms", c.block_sync_lifetime_period_ms);
+            serialize_field(&mut map, "block_lifetime_period_ms", c.block_lifetime_period_ms);
+            serialize_field(&mut map, "verification_obligation_cutoff", c.verification_obligation_cutoff);
+        },
         ConfigParamEnum::ConfigParam58(ref c) => {
             return Ok(Some(serialize_mesh_config(c)?));
         },

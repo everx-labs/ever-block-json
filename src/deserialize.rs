@@ -556,6 +556,23 @@ impl StateParser {
         }))
     }
 
+    fn parse_smft_params(p62: &PathMap) -> Result<ConfigParamEnum> {
+        Ok(ConfigParamEnum::ConfigParam62(SmftParams {
+            min_forwarding_neighbours_count: p62.get_num("min_forwarding_neighbours_count")? as u32,
+            max_forwarding_neighbours_count: p62.get_num("max_forwarding_neighbours_count")? as u32,
+            min_far_neighbours_count: p62.get_num("min_far_neighbours_count")? as u32,
+            max_far_neighbours_count: p62.get_num("max_far_neighbours_count")? as u32,
+            min_block_sync_period_ms: p62.get_num("min_block_sync_period_ms")? as u32,
+            max_block_sync_period_ms: p62.get_num("max_block_sync_period_ms")? as u32,
+            min_far_neighbours_sync_period_ms: p62.get_num("min_far_neighbours_sync_period_ms")? as u32,
+            max_far_neighbours_sync_period_ms: p62.get_num("max_far_neighbours_sync_period_ms")? as u32,
+            far_neighbours_resync_period_ms: p62.get_num("far_neighbours_resync_period_ms")? as u32,
+            block_sync_lifetime_period_ms: p62.get_num("block_sync_lifetime_period_ms")? as u32,
+            block_lifetime_period_ms: p62.get_num("block_lifetime_period_ms")? as u32,
+            verification_obligation_cutoff: p62.get_num("verification_obligation_cutoff")? as u32,
+        }))
+    }
+
     fn parse_validator_set(config: &PathMap) -> Result<ValidatorSet> {
         let utime_since = config.get_num("utime_since")? as u32;
         let utime_until = config.get_num("utime_until")? as u32;
@@ -830,6 +847,8 @@ impl StateParser {
             p61.get_u8("candidates_percentile", &mut ff_config.candidates_percentile);
             self.extra.config.set_config(ConfigParamEnum::ConfigParam61(ff_config))?;
         }
+
+        self.parse_parameter(config, 62, Self::parse_smft_params)?;
 
         Ok(())
     }
