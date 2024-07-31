@@ -19,7 +19,7 @@ use crate::{serialize_config, SerializationMode, serialize_config_param};
 use ever_block::{
     ConfigParam3, ConfigParam32, ConfigParam33, ConfigParam35, ConfigParam36, ConfigParam37,
     ConfigParam39, ConfigParam4, ConfigParam6, ConfigVotingSetup, DelectorParams, Number16,
-    SigPubKey, VarUInteger32, ConfigCopyleft,
+    SigPubKey, VarUInteger32, ConfigCopyleft, SmftParams,
 };
 use ever_block::{BuilderData, IBitstring};
 
@@ -488,6 +488,9 @@ fn prepare_config_params() -> ConfigParams {
 
     let c61 = FastFinalityConfig::default();
     cp.set_config(ConfigParamEnum::ConfigParam61(c61)).unwrap();
+
+    let c62 = ConfigParamEnum::ConfigParam62(SmftParams::new());
+    cp.set_config(c62).unwrap();
 
     cp
 }

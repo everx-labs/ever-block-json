@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.9.16
+
+- SMFT config parameters
+
 ## Version 0.9.3
 
 - Added support of fast finality data structures
