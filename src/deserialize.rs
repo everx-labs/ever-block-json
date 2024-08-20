@@ -572,7 +572,16 @@ impl StateParser {
             far_neighbours_resync_period_ms: p62.get_num("far_neighbours_resync_period_ms")? as u32,
             block_sync_lifetime_period_ms: p62.get_num("block_sync_lifetime_period_ms")? as u32,
             block_lifetime_period_ms: p62.get_num("block_lifetime_period_ms")? as u32,
-            verification_obligation_cutoff: p62.get_num("verification_obligation_cutoff")? as u32,
+            verification_obligation_cutoff_numerator: p62.get_num("verification_obligation_cutoff_numerator")? as u32,
+            verification_obligation_cutoff_denominator: p62.get_num("verification_obligation_cutoff_denominator")? as u32,
+            delivery_cutoff_numerator: p62.get_num("delivery_cutoff_numerator")? as u32,
+            delivery_cutoff_denominator: p62.get_num("delivery_cutoff_denominator")? as u32,
+            manual_candidate_loading_delay_ms: p62.get_num("manual_candidate_loading_delay_ms")? as u32,
+            mc_allowed_force_delivery_delay_ms: p62.get_num("mc_allowed_force_delivery_delay_ms")? as u32,
+            mc_force_delivery_duplication_factor_numerator: p62.get_num("mc_force_delivery_duplication_factor_numerator")? as u32,
+            mc_force_delivery_duplication_factor_denominator: p62.get_num("mc_force_delivery_duplication_factor_denominator")? as u32,
+            mc_max_delivery_waiting_timeout_ms: p62.get_num("mc_max_delivery_waiting_timeout_ms")? as u32,
+            use_debug_bls_keys: p62.get_bool("use_debug_bls_keys")?,
         }))
     }
 
