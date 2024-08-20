@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.9.23
+
+- Add fast finality params serialization
+
 ## Version 0.9.16
 
 - SMFT config parameters

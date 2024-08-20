@@ -1121,6 +1121,27 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
         ConfigParamEnum::ConfigParam44(ref c) => {
             return Ok(Some(serialize_suspended_addresses(c)?));
         },
+        ConfigParamEnum::ConfigParam61(ref c) => {
+            serialize_field(&mut map, "split_merge_interval", c.split_merge_interval);
+            serialize_field(&mut map, "collator_range_len", c.collator_range_len);
+            serialize_field(&mut map, "lost_collator_timeout", c.lost_collator_timeout);
+            serialize_field(&mut map, "mempool_validators_count", c.mempool_validators_count);
+            serialize_field(&mut map, "mempool_rotated_count", c.mempool_rotated_count);
+            serialize_field(&mut map, "unreliability_fine", c.unreliability_fine);
+            serialize_field(&mut map, "unreliability_weak_fading", c.unreliability_weak_fading);
+            serialize_field(&mut map, "unreliability_strong_fading", c.unreliability_strong_fading);
+            serialize_field(&mut map, "unreliability_max", c.unreliability_max);
+            serialize_field(&mut map, "unreliability_weight", c.unreliability_weight);
+            serialize_field(&mut map, "familiarity_collator_fine", c.familiarity_collator_fine);
+            serialize_field(&mut map, "familiarity_msgpool_fine", c.familiarity_msgpool_fine);
+            serialize_field(&mut map, "familiarity_fading", c.familiarity_fading);
+            serialize_field(&mut map, "familiarity_max", c.familiarity_max);
+            serialize_field(&mut map, "familiarity_weight", c.familiarity_weight);
+            serialize_field(&mut map, "busyness_collator_fine", c.busyness_collator_fine);
+            serialize_field(&mut map, "busyness_msgpool_fine", c.busyness_msgpool_fine);
+            serialize_field(&mut map, "busyness_weight", c.busyness_weight);
+            serialize_field(&mut map, "candidates_percentile", c.candidates_percentile);
+        },
         ConfigParamEnum::ConfigParam62(ref c) => {
             serialize_field(&mut map, "min_forwarding_neighbours_count", c.min_forwarding_neighbours_count);
             serialize_field(&mut map, "max_forwarding_neighbours_count", c.max_forwarding_neighbours_count);
@@ -1169,7 +1190,7 @@ fn serialize_block_ref(blk_ref: &ExtBlkRef, key: Option<bool>, mode: Serializati
 
 fn serialize_shard_hashes(map: &mut Map<String, Value>, id_str: &str, hashes: &ShardHashes, mode: SerializationMode) -> Result<()> {
     let mut shard_hashes = Vec::new();
-    let mut min_gen_utime = u32::max_value();
+    let mut min_gen_utime = u32::MAX;
     let mut max_gen_utime = 0;
     hashes.iterate_with_keys(&mut |key: i32, InRefValue(tree): InRefValue<BinTree<ShardDescr>>| {
         tree.iterate(&mut |shard: SliceData, descr| {
