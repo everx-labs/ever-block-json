@@ -78,19 +78,19 @@ impl ParseJson for Value {
 }
 
 #[derive(Debug)]
-struct PathMap<'m, 'a> {
+pub struct PathMap<'m, 'a> {
     map: &'m Map<String, Value>,
     path: Vec<&'a str>
 }
 
 impl<'m, 'a> PathMap<'m, 'a> {
-    fn new(map: &'m Map<String, Value>) -> Self {
+    pub fn new(map: &'m Map<String, Value>) -> Self {
         Self {
             map,
             path: vec!["root"]
         }
     }
-    fn cont(prev: &Self, name: &'a str, value: &'m Value) -> Result<Self> {
+    pub fn cont(prev: &Self, name: &'a str, value: &'m Value) -> Result<Self> {
         let map = value
             .as_object()
             .ok_or_else(|| error!("{}/{} must be the vector of objects", prev.path.join("/"), name))?;
@@ -101,11 +101,14 @@ impl<'m, 'a> PathMap<'m, 'a> {
             path
         })
     }
-    fn get_item(&self, name: &'a str) -> Result<&'m Value> {
+    pub fn iter(&self) -> serde_json::map::Iter<'m> {
+        self.map.iter()
+    }
+    pub fn get_item(&self, name: &'a str) -> Result<&'m Value> {
         let item = self.map.get(name).ok_or_else(|| error!("{} must have the field `{}`", self.path.join("/"), name))?;
         Ok(item)
     }
-    fn get_obj(&self, name: &'a str) -> Result<Self> {
+    pub fn get_obj(&self, name: &'a str) -> Result<Self> {
         let map = self.get_item(name)?
             .as_object()
             .ok_or_else(|| error!("{}/{} must be the object", self.path.join("/"), name))?;
@@ -116,28 +119,28 @@ impl<'m, 'a> PathMap<'m, 'a> {
             path
         })
     }
-    fn get_vec(&self, name: &'a str) -> Result<&'m Vec<Value>> {
+    pub fn get_vec(&self, name: &'a str) -> Result<&'m Vec<Value>> {
         self.get_item(name)?
             .as_array()
             .ok_or_else(|| error!("{}/{} must be the vector", self.path.join("/"), name))
     }
-    fn get_str(&self, name: &'a str) -> Result<&'m str> {
+    pub fn get_str(&self, name: &'a str) -> Result<&'m str> {
         self.get_item(name)?
             .as_str()
             .ok_or_else(|| error!("{}/{} must be the string", self.path.join("/"), name))
     }
-    fn get_uint256(&self, name: &'a str) -> Result<UInt256> {
+    pub fn get_uint256(&self, name: &'a str) -> Result<UInt256> {
         self.get_str(name)?.parse()
             .map_err(|err| error!("{}/{} must be the uint256 in hex format : {}",
                 self.path.join("/"), name, err))
     }
-    fn get_base64(&self, name: &'a str) -> Result<Vec<u8>> {
+    pub fn get_base64(&self, name: &'a str) -> Result<Vec<u8>> {
         base64_decode(self.get_str(name)?)
             .map_err(|err| error!("{}/{} must be the base64 : {}",
                 self.path.join("/"), name, err))
     }
 
-    fn get_num(&self, name: &'a str) -> Result<i64> {
+    pub fn get_num(&self, name: &'a str) -> Result<i64> {
         if let Ok(value) = self.get_item(name) {
             if let Some(v) = value.as_i64() {
                 return Ok(v);
@@ -178,7 +181,7 @@ impl<'m, 'a> PathMap<'m, 'a> {
         )
     }
 
-    fn get_grams(&self, name: &'a str) -> Result<Grams> {
+    pub fn get_grams(&self, name: &'a str) -> Result<Grams> {
         if let Ok(value) = self.get_item(name) {
             if let Some(v) = value.as_u64() {
                 return Ok(v.into());
@@ -210,25 +213,25 @@ impl<'m, 'a> PathMap<'m, 'a> {
         )
     }
 
-    fn get_u32(&self, name: &'a str, value: &mut u32) {
+    pub fn get_u32(&self, name: &'a str, value: &mut u32) {
         if let Ok(new_value) = self.get_num(name) {
             *value = new_value as u32;
         }
     }
-    fn get_u16(&self, name: &'a str, value: &mut u16) {
+    pub fn get_u16(&self, name: &'a str, value: &mut u16) {
         if let Ok(new_value) = self.get_num(name) {
             *value = new_value as u16;
         }
     }
-    fn get_u8(&self, name: &'a str, value: &mut u8) {
+    pub fn get_u8(&self, name: &'a str, value: &mut u8) {
         if let Ok(new_value) = self.get_num(name) {
             *value = new_value as u8;
         }
     }
-    fn get_num16(&self, name: &'a str) -> Result<u16> {
+    pub fn get_num16(&self, name: &'a str) -> Result<u16> {
         Ok(self.get_num(name)? as u16)
     }
-    fn get_bool(&self, name: &'a str) -> Result<bool> {
+    pub fn get_bool(&self, name: &'a str) -> Result<bool> {
         self.get_item(name)?
             .as_bool()
             .ok_or_else(|| error!("{}/{} must be boolean", self.path.join("/"), name))
@@ -831,6 +834,8 @@ impl StateParser {
             p61.get_u32("split_merge_interval", &mut ff_config.split_merge_interval);
             p61.get_u32("collator_range_len", &mut ff_config.collator_range_len);
             p61.get_u32("lost_collator_timeout", &mut ff_config.lost_collator_timeout);
+            p61.get_u32("mempool_validators_count", &mut ff_config.mempool_validators_count);
+            p61.get_u32("mempool_rotated_count", &mut ff_config.mempool_rotated_count);
             p61.get_u16("unreliability_fine", &mut ff_config.unreliability_fine);
             p61.get_u16("unreliability_weak_fading", &mut ff_config.unreliability_weak_fading);
             p61.get_u16("unreliability_strong_fading", &mut ff_config.unreliability_strong_fading);
