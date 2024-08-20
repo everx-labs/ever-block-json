@@ -1154,7 +1154,16 @@ pub fn serialize_known_config_param(number: u32, param: &mut SliceData, mode: Se
             serialize_field(&mut map, "far_neighbours_resync_period_ms", c.far_neighbours_resync_period_ms);
             serialize_field(&mut map, "block_sync_lifetime_period_ms", c.block_sync_lifetime_period_ms);
             serialize_field(&mut map, "block_lifetime_period_ms", c.block_lifetime_period_ms);
-            serialize_field(&mut map, "verification_obligation_cutoff", c.verification_obligation_cutoff);
+            serialize_field(&mut map, "verification_obligation_cutoff_numerator", c.verification_obligation_cutoff_numerator);
+            serialize_field(&mut map, "verification_obligation_cutoff_denominator", c.verification_obligation_cutoff_denominator);
+            serialize_field(&mut map, "delivery_cutoff_numerator", c.delivery_cutoff_numerator);
+            serialize_field(&mut map, "delivery_cutoff_denominator", c.delivery_cutoff_denominator);
+            serialize_field(&mut map, "manual_candidate_loading_delay_ms", c.manual_candidate_loading_delay_ms);
+            serialize_field(&mut map, "mc_allowed_force_delivery_delay_ms", c.mc_allowed_force_delivery_delay_ms);
+            serialize_field(&mut map, "mc_force_delivery_duplication_factor_numerator", c.mc_force_delivery_duplication_factor_numerator);
+            serialize_field(&mut map, "mc_force_delivery_duplication_factor_denominator", c.mc_force_delivery_duplication_factor_denominator);
+            serialize_field(&mut map, "mc_max_delivery_waiting_timeout_ms", c.mc_max_delivery_waiting_timeout_ms);
+            serialize_field(&mut map, "use_debug_bls_keys", c.use_debug_bls_keys);
         },
         ConfigParamEnum::ConfigParam58(ref c) => {
             return Ok(Some(serialize_mesh_config(c)?));
