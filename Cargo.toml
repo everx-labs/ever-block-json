@@ -2,7 +2,7 @@
 build = 'common/build/build.rs'
 edition = '2021'
 name = 'ever_block_json'
-version = '0.9.26'
+version = '0.9.27'
 
 [dependencies]
 anyhow = '1.0'
@@ -16,8 +16,8 @@ serde = '1.0'
 serde_derive = '1.0'
 serde_json = { features = [ 'preserve_order' ], version = '1.0' }
 thiserror = '1.0'
-ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.14' }
-ton_api = { git = 'https://github.com/everx-labs/ever-tl.git', package = 'ton_api', tag = '0.4.21' }
+ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.15' }
+ton_api = { git = 'https://github.com/everx-labs/ever-tl.git', package = 'ton_api', tag = '0.4.22' }
 
 [dev-dependencies]
 pretty_assertions = '1.4'
