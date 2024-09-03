@@ -37,7 +37,7 @@ impl ParseJson for Value {
         self.as_str().ok_or_else(|| error!("field is not str"))?.parse()
     }
     fn as_base64(&self) -> Result<Vec<u8>> {
-        Ok(base64_decode(self.as_str().ok_or_else(|| error!("field is not str"))?)?)
+        base64_decode(self.as_str().ok_or_else(|| error!("field is not str"))?)
     }
     fn as_int(&self) -> Result<i32> {
         match self.as_i64() {
@@ -332,7 +332,7 @@ impl StateParser {
         match config.get_vec(&p) {
             Ok(vec) => {
                 let mut params = MandatoryParams::default();
-                vec.iter().try_for_each(|n| params.set(&n.as_uint()?, &()))?;
+                vec.iter().try_for_each(|n| params.add_key(&n.as_uint()?))?;
                 Ok(Some(params))
             }
             Err(err) => {
@@ -718,7 +718,7 @@ impl StateParser {
 
         self.parse_array(config, 31, |p31| {
             let mut fundamental_smc_addr = FundamentalSmcAddresses::default();
-            p31.iter().try_for_each(|n| fundamental_smc_addr.set(&n.as_uint256()?, &()))?;
+            p31.iter().try_for_each(|n| fundamental_smc_addr.add_key(&n.as_uint256()?))?;
             Ok(ConfigParamEnum::ConfigParam31(ConfigParam31 {fundamental_smc_addr} ))
         })?;
 
@@ -728,7 +728,7 @@ impl StateParser {
         self.parse_parameter(config, 34, |p34| {
             let mut list = vec![];
             p34.get_vec("list").and_then(|p| p.iter().try_for_each::<_, Result<()>>(|p| {
-                let p = PathMap::cont(&config, "p34", p)?;
+                let p = PathMap::cont(config, "p34", p)?;
                 let bls_public_key = if let Ok(bls_public_key) = p.get_str("bls_public_key") {
                     if bls_public_key.len() != 96 {
                         fail!("Invalid BLS public key length {}", bls_public_key.len());
@@ -780,7 +780,7 @@ impl StateParser {
                     seqno,
                     valid_until,
                 );
-                let sk = CryptoSignature::from_r_s_str(&signature_r, &signature_s)?;
+                let sk = CryptoSignature::from_r_s_str(signature_r, signature_s)?;
                 validator_keys.set(&key, &ValidatorSignedTempKey::with_key_and_signature(pk, sk))?;
                 Ok(())
             })?;
@@ -870,7 +870,7 @@ impl StateParser {
     fn parse_state_unchecked(mut self, map: &Map<String, Value>) -> Result<ShardStateUnsplit> {
         let map_path = PathMap::new(map);
 
-        self.state.set_min_ref_mc_seqno(std::u32::MAX);
+        self.state.set_min_ref_mc_seqno(u32::MAX);
 
         match map_path.get_num("global_id") {
             Ok(global_id) => self.state.set_global_id(global_id as i32),
@@ -980,7 +980,7 @@ impl StateParser {
                 let mut lib = LibDescr::new(lib);
                 let publishers = library.get_vec("publishers")?;
                 publishers.iter().try_for_each::<_, Result<()>>(|publisher| {
-                    lib.publishers_mut().set(&publisher.as_uint256()?, &())
+                    lib.publishers_mut().add_key(&publisher.as_uint256()?)
                 })?;
                 self.state.libraries_mut().set(&id, &lib)?;
                 Ok(())

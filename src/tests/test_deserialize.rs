@@ -60,7 +60,7 @@ fn test_parse_errors() {
         "uint": "-100",
     });
 
-    let map = PathMap::new(&json.as_object().unwrap());
+    let map = PathMap::new(json.as_object().unwrap());
     check_err(map.get_obj("unknown"), "root must have the field `unknown`");
     check_err(map.get_vec("obj"), "root/obj must be the vector");
     let obj = map.get_obj("obj").unwrap();
@@ -214,7 +214,7 @@ fn get_config_param11() -> ConfigParam11 {
 fn get_config_param12() -> ConfigParam12 {
     let mut cp12 = ConfigParam12::new();
 
-    for i in 0..10 as i32 {
+    for i in 0..10_i32 {
         let wc = get_workchain_desc();
         cp12.insert(i, &wc).unwrap();
     }
@@ -224,7 +224,7 @@ fn get_config_param12() -> ConfigParam12 {
 fn get_config_param9() -> ConfigParam9 {
     let mut mp = MandatoryParams::default();
     for i in 1..100 {
-        mp.set(&i, &()).unwrap();
+        mp.add_key(&i).unwrap();
     }
     ConfigParam9 {
         mandatory_params: mp
@@ -234,7 +234,7 @@ fn get_config_param9() -> ConfigParam9 {
 fn get_config_param10() -> ConfigParam10 {
     let mut cp = MandatoryParams::default();
     for i in 1..100 {
-        cp.set(&i, &()).unwrap();
+        cp.add_key(&i).unwrap();
     }
     ConfigParam10 {
         critical_params: cp
@@ -263,7 +263,7 @@ fn get_config_param29() -> ConfigParam29 {
     ConfigParam29 {
         consensus_config: ConsensusConfig {
             new_catchain_ids: true,
-            round_candidates: 10 as u32 | 1,
+            round_candidates: 10_u32 | 1,
             next_candidate_delay_ms: 20,
             consensus_timeout_ms: 30,
             fast_attempts: 40,
@@ -295,8 +295,8 @@ fn get_config_param42() -> ConfigCopyleft {
         copyleft_reward_threshold: 100.into(),
         license_rates: Default::default(),
     };
-    for i in 0..10 {
-        cfg.license_rates.set(&(i as u8), &(i * 10 as u8)).unwrap();
+    for i in 0..10u8 {
+        cfg.license_rates.set(&i, &(i * 10)).unwrap();
     }
     cfg
 }
@@ -331,11 +331,11 @@ fn get_config_param_39() -> ConfigParam39 {
 fn get_validator_set() -> ValidatorSet {
     let mut list = vec!();
 
-    let key = SigPubKey::from_bytes(&*base64_decode("39MLqLIVrzLqPCHCFpbn1/jILSbfNMtnr/7zOkKE1Ds=").unwrap()).unwrap();
+    let key = SigPubKey::from_bytes(&base64_decode("39MLqLIVrzLqPCHCFpbn1/jILSbfNMtnr/7zOkKE1Ds=").unwrap()).unwrap();
     let vd = ValidatorDescr::with_params(key, 4, None, None);
     list.push(vd);
 
-    let key = SigPubKey::from_bytes(&*base64_decode("BIYYOFHTgVDIFzVLhuSZw2ne1J3zuv75zwYhAXb0+iY=").unwrap()).unwrap();
+    let key = SigPubKey::from_bytes(&base64_decode("BIYYOFHTgVDIFzVLhuSZw2ne1J3zuv75zwYhAXb0+iY=").unwrap()).unwrap();
     let vd = ValidatorDescr::with_params(key, 5, None, None);
     list.push(vd);
 
@@ -515,12 +515,12 @@ fn test_config_params() {
 
     let mut json = serde_json::Map::<String, Value>::new();
     serialize_config(&mut json, &cp, SerializationMode::QServer).unwrap();
-    let parsed_config = parse_config(&json.get("config").unwrap().as_object().unwrap()).unwrap();
+    let parsed_config = parse_config(json.get("config").unwrap().as_object().unwrap()).unwrap();
     check_params(&cp, &parsed_config);
 
     let mut json = serde_json::Map::<String, Value>::new();
     serialize_config(&mut json, &cp, SerializationMode::Debug).unwrap();
-    let parsed_config = parse_config(&json.get("config").unwrap().as_object().unwrap()).unwrap();
+    let parsed_config = parse_config(json.get("config").unwrap().as_object().unwrap()).unwrap();
     check_params(&cp, &parsed_config);
 }
 

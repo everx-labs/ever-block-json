@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.9.28
+
+- Fixed for clippy
+
 ## Version 0.9.24
 
 - Additional SMFT params
