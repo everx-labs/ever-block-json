@@ -15,14 +15,11 @@
  */
 
 use super::*;
-use crate::block_parser::reducers::JsonFieldsReducer;
-use crate::block_parser::MINTER_ADDRESS;
+use crate::block_parser::{reducers::JsonFieldsReducer, MINTER_ADDRESS};
 use crate::{NoTrace, ParsedBlock};
+use ever_block::{read_single_root_boc, Block, GetRepresentationHash, InMsg, OutMsg, UInt256};
 use serde_json::Map;
-use std::collections::HashMap;
-use std::{fs::read, path::Path};
-use ever_block::{Block, GetRepresentationHash, InMsg, OutMsg};
-use ever_block::{read_single_root_boc, UInt256};
+use std::{collections::HashMap, fs::read, path::Path};
 
 #[derive(Default)]
 pub struct ParseOptions {
@@ -34,14 +31,14 @@ pub struct ParseOptions {
 }
 
 impl ParseOptions {
-    fn mc_seq_no(self: Self, seq_no: u32) -> Self {
+    fn mc_seq_no(self, seq_no: u32) -> Self {
         Self {
             mc_seq_no: Some(seq_no),
             ..self
         }
     }
 
-    fn sharding(self: Self, blocks: u32, transactions: u32, messages: u32) -> Self {
+    fn sharding(self, blocks: u32, transactions: u32, messages: u32) -> Self {
         fn config(depth: u32) -> Option<EntryConfig<JsonFieldsReducer>> {
             Some(EntryConfig {
                 reducer: None,
@@ -56,7 +53,7 @@ impl ParseOptions {
         }
     }
 
-    fn file_hash(self: Self, file_hash: UInt256) -> Self {
+    fn file_hash(self, file_hash: UInt256) -> Self {
         Self {
             file_hash: Some(file_hash),
             ..self
@@ -76,22 +73,22 @@ fn parse_block(
     options: Option<ParseOptions>,
 ) -> (Vec<u8>, UInt256, ParsedBlock) {
     let in_path = Path::new("src/tests/data").join(file_rel_path);
-    let boc = read(in_path.clone()).expect(&format!("Error reading file {:?}", in_path));
+    let boc = read(in_path.clone()).unwrap_or_else(|_| panic!("Error reading file {:?}", in_path));
     let cell = read_single_root_boc(&boc).expect("Error deserializing single root BOC");
 
     let block = Block::construct_from_cell(cell.clone()).unwrap();
     let info = block.read_info().unwrap();
+    let file_hash = options
+        .as_ref()
+        .and_then(|x| x.file_hash.clone())
+        .unwrap_or_else(|| UInt256::calc_file_hash(&boc));
     let id = BlockIdExt::with_params(
         info.shard().clone(),
         info.seq_no(),
         block.hash().unwrap().clone(),
-        options
-            .as_ref()
-            .map(|x| x.file_hash.clone())
-            .flatten()
-            .unwrap_or_else(|| UInt256::calc_file_hash(&boc)),
+        file_hash,
     );
-    let mc_seq_no = options.as_ref().map(|x| x.mc_seq_no).flatten();
+    let mc_seq_no = options.as_ref().and_then(|x| x.mc_seq_no);
     let (blocks, transactions, messages) = options
         .map(|x| (x.blocks, x.transactions, x.messages))
         .unwrap_or((None, None, None));
@@ -144,14 +141,13 @@ fn test_transaction_code_hash() {
         entry
             .body
             .get(field)
-            .map(|x| x.as_str().map(|x| !x.is_empty()))
-            .flatten()
-            .unwrap_or(false)
+            .and_then(|x| x.as_str())
+            .map_or(false, |x| !x.is_empty())
     }
 
     for tr in &parsed.transactions {
         assert!(
-            has_code_hash(&tr, "code_hash"),
+            has_code_hash(tr, "code_hash"),
             "transaction should have code hash"
         );
     }

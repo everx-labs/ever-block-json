@@ -86,7 +86,7 @@ impl SignedCurrencyCollection {
             }
         }
         for (key, value) in other.other.iter() {
-            if self.other.get(key).is_none() {
+            if !self.other.contains_key(key) {
                 self.other.insert(*key, value.clone());
             }
         }
@@ -100,7 +100,7 @@ impl SignedCurrencyCollection {
             }
         }
         for (key, value) in other.other.iter() {
-            if self.other.get(key).is_none() {
+            if !self.other.contains_key(key) {
                 self.other.insert(*key, -value.clone());
             }
         }
@@ -1381,7 +1381,7 @@ fn serialize_mc_state_extra(map: &mut Map<String, Value>, id_str: &str, extra: &
     }
     serialize_cc(&mut extra_map, "global_balance", &extra.global_balance, mode)?;
     serialize_copyleft_rewards(&mut extra_map, "state_copyleft_rewards", &extra.state_copyleft_rewards, mode)?;
-    if extra.validators_stat.len() > 0 {
+    if !extra.validators_stat.is_empty() {
         serialize_field(&mut extra_map, "validators_unreliability", 
             serialize_validators_stat(&extra.validators_stat)?);
     }
@@ -1863,7 +1863,7 @@ pub fn db_serialize_transaction_ex<'a>(
             }
             // IHR fee is added to account balance if IHR is not used or to total fees if message 
             // delivered through IHR
-            if let Some((ihr_fee, _)) = get_msg_fees(&msg) {
+            if let Some((ihr_fee, _)) = get_msg_fees(msg) {
                 balance_delta.grams += ihr_fee.as_u128();
             }
             address_from_message = msg.dst_ref().cloned();
@@ -1883,7 +1883,7 @@ pub fn db_serialize_transaction_ex<'a>(
                 if let Some(value) = msg.get_value() {
                     balance_delta.sub(&SignedCurrencyCollection::from_cc(value)?);
                 }
-                if let Some((ihr_fee, fwd_fee)) = get_msg_fees(&msg) {
+                if let Some((ihr_fee, fwd_fee)) = get_msg_fees(msg) {
                     balance_delta.grams -= ihr_fee.as_u128();
                     balance_delta.grams -= fwd_fee.as_u128();
                 }
@@ -2020,7 +2020,7 @@ pub fn db_serialize_account_ex(
         serialize_field(&mut map, "proof", base64_encode(proof));
     }
     serialize_account_status(&mut map, "acc_type", &set.account.status(), mode);
-    serialize_id(&mut map, "prev_code_hash", (&set.prev_code_hash).as_ref());
+    serialize_id(&mut map, "prev_code_hash", set.prev_code_hash.as_ref());
     Ok(map)
 }
 
@@ -2046,7 +2046,7 @@ pub fn db_serialize_deleted_account_ex(
     serialize_field(&mut map, id_str, address.to_string());
     serialize_field(&mut map, "workchain_id", set.workchain_id);
     serialize_account_status(&mut map, "acc_type", &AccountStatus::AccStateNonexist, mode);
-    serialize_id(&mut map, "prev_code_hash", (&set.prev_code_hash).as_ref());
+    serialize_id(&mut map, "prev_code_hash", set.prev_code_hash.as_ref());
 
     Ok(map)
 }
