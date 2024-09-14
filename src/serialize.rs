@@ -744,6 +744,14 @@ fn serialize_shard_descr(descr: &ShardDescr, mode: SerializationMode) -> Result<
             serialize_validators_stat(&collators.stat)?);
         map.insert("collators".to_string(), collators_map.into());
     }
+    if let Some(pack_info) = &descr.pack_info {
+        let mut pack_map = Map::new();
+        pack_map.insert("round".to_string(), pack_info.round.into());
+        pack_map.insert("seqno".to_string(), pack_info.last_id.seqno.into());
+        serialize_id(&mut pack_map, "last_pack_hash", Some(&pack_info.last_id.hash));
+        serialize_id(&mut pack_map, "last_partially_included", pack_info.last_partially_included.as_ref());
+        map.insert("pack_processing_info".to_string(), pack_map.into());
+    }
     Ok(map.into())
 }
 
