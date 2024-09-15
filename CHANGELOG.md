@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version 0.9.31
+
+- Added export pack_processing_info for shard block
+
 ## Version 0.9.30
 
 - Added export pack_processing_info for shard descriptions in masterchain block

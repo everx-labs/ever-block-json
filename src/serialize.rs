@@ -745,14 +745,18 @@ fn serialize_shard_descr(descr: &ShardDescr, mode: SerializationMode) -> Result<
         map.insert("collators".to_string(), collators_map.into());
     }
     if let Some(pack_info) = &descr.pack_info {
-        let mut pack_map = Map::new();
-        pack_map.insert("round".to_string(), pack_info.round.into());
-        pack_map.insert("seqno".to_string(), pack_info.last_id.seqno.into());
-        serialize_id(&mut pack_map, "last_pack_hash", Some(&pack_info.last_id.hash));
-        serialize_id(&mut pack_map, "last_partially_included", pack_info.last_partially_included.as_ref());
-        map.insert("pack_processing_info".to_string(), pack_map.into());
+        map.insert("pack_info".to_string(), serialize_pack_info(pack_info)?);
     }
     Ok(map.into())
+}
+
+fn serialize_pack_info(pack_info: &MsgPackProcessingInfo) -> Result<Value> {
+    let mut pack_map = Map::new();
+    pack_map.insert("round".to_string(), pack_info.round.into());
+    pack_map.insert("seqno".to_string(), pack_info.last_id.seqno.into());
+    serialize_id(&mut pack_map, "last_pack_hash", Some(&pack_info.last_id.hash));
+    serialize_id(&mut pack_map, "last_partially_included", pack_info.last_partially_included.as_ref());
+    Ok(pack_map.into())
 }
 
 fn serialize_config_proposal_setup(cps: &ConfigProposalSetup) -> Result<Value> {
@@ -1561,6 +1565,9 @@ pub fn db_serialize_block_ex<'a>(
     map.insert("prev_key_block_seqno".to_string(), block_info.prev_key_block_seqno().into());
     map.insert("workchain_id".to_string(), block_info.shard().workchain_id().into());
     map.insert("shard".to_string(), block_info.shard().shard_prefix_as_str_with_tag().into());
+    if let Some(pack_info) = &block_info.read_pack_info()? {
+        map.insert("pack_info".to_string(), serialize_pack_info(pack_info)?);
+    }
 
     if let Some(gs) = block_info.gen_software() {
         serialize_field(&mut map, "gen_software_version", gs.version);

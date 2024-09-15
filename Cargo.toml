@@ -2,7 +2,7 @@
 build = 'common/build/build.rs'
 edition = '2021'
 name = 'ever_block_json'
-version = '0.9.30'
+version = '0.9.31'
 
 [dependencies]
 anyhow = '1.0'
